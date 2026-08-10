@@ -55,6 +55,51 @@ describe("exerciseInputSchema", () => {
     });
     expect(result.success).toBe(false);
   });
+
+  it.each([
+    "Bench Press",
+    "Close-Grip Bench Press",
+    "Farmer's Walk",
+    "Pull-Up / Chin-Up",
+    "45° Back Extension",
+    "Squat & Press",
+    "3/4 Sit-Up",
+    "Bench Press (Incline)",
+    "Développé Couché",
+  ])("accepts a real exercise name: %s", (name) => {
+    const result = exerciseInputSchema.safeParse({
+      name,
+      muscleGroup: "chest",
+      equipment: "barbell",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it.each([
+    "*&^%",
+    "---",
+    "()",
+    "",
+    "   ",
+    "<script>alert(1)</script>",
+    "-Squat",
+  ])("rejects a garbage or malformed name: %s", (name) => {
+    const result = exerciseInputSchema.safeParse({
+      name,
+      muscleGroup: "chest",
+      equipment: "barbell",
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("collapses runs of internal whitespace to a single space", () => {
+    const parsed = exerciseInputSchema.parse({
+      name: "Bench    Press",
+      muscleGroup: "chest",
+      equipment: "barbell",
+    });
+    expect(parsed.name).toBe("Bench Press");
+  });
 });
 
 describe("workoutInputSchema", () => {

@@ -1,8 +1,8 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useId, useState } from "react";
 
-import { EQUIPMENT, MUSCLE_GROUPS } from "@/domain/constants";
+import { EQUIPMENT, EXERCISE_NAME_MESSAGE, EXERCISE_NAME_PATTERN, MUSCLE_GROUPS } from "@/domain/constants";
 import { createExerciseAction } from "@/server/actions/exercises";
 import { initialActionState } from "@/server/actions/state";
 
@@ -11,6 +11,31 @@ const inputClass =
 
 export function ExerciseForm() {
   const [state, action, pending] = useActionState(createExerciseAction, initialActionState);
+  const [name, setName] = useState("");
+  const nameErrorId = useId();
+
+  // Reset the controlled name field once a submission actually succeeds.
+  // Uncontrolled fields (selects) get this for free from React 19's
+  // automatic form reset; a controlled input needs it adjusted during
+  // render (see https://react.dev/learn/you-might-not-need-an-effect).
+  const [prevState, setPrevState] = useState(state);
+  // The name the server last rejected, so its error can be dropped once edited
+  const [rejectedName, setRejectedName] = useState("");
+  if (state !== prevState) {
+    setPrevState(state);
+    if (state.status === "idle" && state !== initialActionState) {
+      setName("");
+    } else if (state.status === "error") {
+      setRejectedName(name);
+    }
+  }
+
+  const clientNameError = name.length > 0 && !EXERCISE_NAME_PATTERN.test(name) ? EXERCISE_NAME_MESSAGE : null;
+  // A server error (duplicate name) only applies to the value that was submitted;
+  // editing the field clears it rather than leaving a stale complaint on screen
+  const serverNameError = name === rejectedName ? (state.fieldErrors?.name ?? null) : null;
+  const nameError = clientNameError ?? serverNameError;
+  const isNameInvalid = name.trim().length === 0 || clientNameError !== null;
 
   return (
     <form
@@ -22,10 +47,20 @@ export function ExerciseForm() {
           <label htmlFor="name" className="mb-1 block text-xs font-medium">
             Name
           </label>
-          <input id="name" name="name" required className={inputClass} placeholder="Bench Press" />
-          {state.fieldErrors?.name ? (
-            <p className="mt-1 text-xs text-red-600 dark:text-red-400">
-              {state.fieldErrors.name}
+          <input
+            id="name"
+            name="name"
+            required
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            aria-invalid={Boolean(nameError)}
+            aria-describedby={nameError ? nameErrorId : undefined}
+            className={inputClass}
+            placeholder="Bench Press"
+          />
+          {nameError ? (
+            <p id={nameErrorId} className="mt-1 text-xs text-red-600 dark:text-red-400">
+              {nameError}
             </p>
           ) : null}
         </div>
@@ -59,7 +94,7 @@ export function ExerciseForm() {
         <div className="flex items-end">
           <button
             type="submit"
-            disabled={pending}
+            disabled={pending || isNameInvalid}
             className="w-full rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-neutral-700 disabled:opacity-50 dark:bg-neutral-50 dark:text-neutral-950 dark:hover:bg-neutral-300"
           >
             {pending ? "Adding…" : "Add exercise"}

@@ -32,3 +32,13 @@ export const LIMITS = {
   maxSetsPerEntry: 50,
   maxEntriesPerWorkout: 50,
 } as const;
+
+// Single source of truth for exercise-name characters, shared by the Zod schema
+// and the client form so both reject exactly the same input.
+// Must open with a letter or digit, which also rules out punctuation-only names
+// like "---". Allows the punctuation real exercise names use:
+// "Close-Grip Bench Press", "Farmer's Walk", "Pull-Up / Chin-Up", "45° Back Extension"
+export const EXERCISE_NAME_PATTERN = /^[\p{L}\p{N}][\p{L}\p{N} '()\-/.,+&°]*$/u;
+
+export const EXERCISE_NAME_MESSAGE =
+  "Start with a letter or number; only letters, numbers, spaces and ' ( ) - / . , + & ° are allowed";

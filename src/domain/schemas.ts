@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { EQUIPMENT, LIMITS, MUSCLE_GROUPS } from "@/domain/constants";
+import { EQUIPMENT, EXERCISE_NAME_MESSAGE, EXERCISE_NAME_PATTERN, LIMITS, MUSCLE_GROUPS } from "@/domain/constants";
 
 const objectId = z
   .string()
@@ -33,7 +33,14 @@ export const workoutInputSchema = z.object({
 });
 
 export const exerciseInputSchema = z.object({
-  name: z.string().trim().min(1, "Name is required").max(120),
+  name: z
+    .string()
+    .trim()
+    .min(1, "Name is required")
+    .max(120)
+    // Collapse internal whitespace before the pattern check so "Bench    Press" can't fail on it
+    .transform((value) => value.replace(/\s+/g, " "))
+    .pipe(z.string().regex(EXERCISE_NAME_PATTERN, EXERCISE_NAME_MESSAGE)),
   muscleGroup: z.enum(MUSCLE_GROUPS),
   equipment: z.enum(EQUIPMENT),
   notes: z.string().trim().max(1000).optional(),
