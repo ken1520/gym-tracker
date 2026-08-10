@@ -64,6 +64,10 @@ These caused real bugs during the initial build. Preserve them.
 
 **The workout form has a field-name contract.** `workout-form.tsx` posts flat indexed names (`entries.0.sets.2.reps`) because set counts are dynamic; `src/server/forms/workout-form.ts` parses them back into nested objects with regexes. Renaming a field in the component silently drops data unless the regexes change too. `workout-form.test.ts` pins this contract, including sparse indices left by client-side row removal.
 
+**Calendar dates are computed in UTC, end to end.** `performedAt` is a UTC instant and form submissions land on UTC midnight, so `src/domain/calendar.ts` does all its date math with `Date.UTC` and `getUTC*`, and `formatDate` pins `timeZone: "UTC"`. Mixing in local time puts a workout in a different cell than the date printed beside it for anyone not on UTC. `format.test.ts` is timezone-sensitive — run it under `TZ=America/Los_Angeles` as well as the default when touching date code.
+
+**`/workouts` state lives in the URL** (`?month=YYYY-MM&day=YYYY-MM-DD`), which keeps the page a Server Component with no client JS and makes months linkable. `resolveMonthKey` falls back to the current month for absent or malformed values, so params are never trusted. The page loads only the selected month via `listWorkoutsInMonth`, not the whole history.
+
 **Warmup sets are excluded from every metric.** Volume, set counts, best set, and PRs all filter on `isWarmup`. New metrics must do the same.
 
 **`exerciseName` is denormalized onto workout entries** so history stays readable after an exercise is renamed or deleted. Do not replace it with a populate.

@@ -10,11 +10,14 @@ export function formatVolume(kg: number): string {
   return `${Math.round(kg).toLocaleString(LOCALE)} kg`;
 }
 
+// Rendered in UTC to match how workouts are stored and how the calendar groups
+// them; local rendering would show a day either side of the cell it sits in
 export function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("en-GB", {
+  return new Date(iso).toLocaleDateString(LOCALE, {
     day: "numeric",
     month: "short",
     year: "numeric",
+    timeZone: "UTC",
   });
 }
 

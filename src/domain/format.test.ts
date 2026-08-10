@@ -45,6 +45,12 @@ describe("formatDate", () => {
   it("renders a short readable date", () => {
     expect(formatDate("2026-08-10T00:00:00.000Z")).toBe("10 Aug 2026");
   });
+
+  it("stays on the UTC day regardless of the runtime timezone", () => {
+    // Would render as 9 Aug in any timezone behind UTC if rendered locally
+    expect(formatDate("2026-08-10T00:30:00.000Z")).toBe("10 Aug 2026");
+    expect(formatDate("2026-08-10T23:30:00.000Z")).toBe("10 Aug 2026");
+  });
 });
 
 describe("toDateInputValue", () => {

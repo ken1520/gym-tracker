@@ -57,6 +57,23 @@ export async function listWorkouts(limit = 50): Promise<Workout[]> {
   return docs.map(toWorkout);
 }
 
+// Half-open UTC range so the calendar only pulls the month it renders
+export async function listWorkoutsInMonth(monthKey: string): Promise<Workout[]> {
+  await connection();
+  await connectToDatabase();
+
+  const [year, month] = monthKey.split("-").map(Number);
+  const start = new Date(Date.UTC(year, month - 1, 1));
+  const end = new Date(Date.UTC(year, month, 1));
+
+  const docs = await WorkoutModel.find({ performedAt: { $gte: start, $lt: end } })
+    .sort({ performedAt: -1 })
+    .lean<LeanWorkout[]>()
+    .exec();
+
+  return docs.map(toWorkout);
+}
+
 export async function findWorkout(id: string): Promise<Workout | null> {
   await connection();
   await connectToDatabase();

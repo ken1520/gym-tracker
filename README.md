@@ -22,7 +22,7 @@ Open the URL printed by the dev server.
 ## Features
 
 - **Log workouts** with multiple exercises, per-set weight/reps/RPE, and warmup flags
-- **History** with per-session volume and set counts
+- **History** as a month calendar, where logged days are shaded by training volume; pick a day to see its sessions
 - **Exercise library** with muscle group and equipment, unique by name
 - **Dashboard** showing total volume and estimated 1RM per exercise
 
