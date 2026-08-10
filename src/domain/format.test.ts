@@ -18,17 +18,26 @@ describe("formatWeight", () => {
   it("handles zero", () => {
     expect(formatWeight(0)).toBe("0 kg");
   });
+
+  it("groups thousands at the weight limit", () => {
+    expect(formatWeight(1000)).toBe("1,000 kg");
+  });
 });
 
 describe("formatVolume", () => {
-  it("uses kilograms below one tonne", () => {
+  it("reports kilograms below one thousand", () => {
     expect(formatVolume(500)).toBe("500 kg");
     expect(formatVolume(999)).toBe("999 kg");
   });
 
-  it("switches to tonnes at one thousand", () => {
-    expect(formatVolume(1000)).toBe("1.0t");
-    expect(formatVolume(2115)).toBe("2.1t");
+  it("stays in kilograms above one thousand rather than switching to tonnes", () => {
+    expect(formatVolume(1000)).toBe("1,000 kg");
+    expect(formatVolume(2115)).toBe("2,115 kg");
+    expect(formatVolume(48250)).toBe("48,250 kg");
+  });
+
+  it("rounds to whole kilograms", () => {
+    expect(formatVolume(2115.4)).toBe("2,115 kg");
   });
 });
 

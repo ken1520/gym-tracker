@@ -28,6 +28,8 @@ Open the URL printed by the dev server.
 
 Warmup sets are excluded from volume, set counts, and personal bests.
 
+All weights and volumes are shown in kilograms.
+
 ## Scripts
 
 | Script | Description |

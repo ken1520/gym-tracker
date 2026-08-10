@@ -1,12 +1,13 @@
 // Display helpers shared by server and client components
+// Kilograms are the only display unit; a fixed locale keeps server and client output identical
+const LOCALE = "en-GB";
+
 export function formatWeight(kg: number): string {
-  const rounded = Math.round(kg * 10) / 10;
-  return `${rounded % 1 === 0 ? rounded.toFixed(0) : rounded.toFixed(1)} kg`;
+  return `${kg.toLocaleString(LOCALE, { maximumFractionDigits: 1 })} kg`;
 }
 
 export function formatVolume(kg: number): string {
-  if (kg >= 1000) return `${(kg / 1000).toFixed(1)}t`;
-  return `${Math.round(kg)} kg`;
+  return `${Math.round(kg).toLocaleString(LOCALE)} kg`;
 }
 
 export function formatDate(iso: string): string {
