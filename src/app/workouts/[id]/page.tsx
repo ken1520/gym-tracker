@@ -1,0 +1,75 @@
+import { notFound } from "next/navigation";
+
+import { Card, PageHeader } from "@/components/ui";
+import { formatDate, formatVolume, formatWeight } from "@/domain/format";
+import { bestSet, entryVolume, estimatedOneRepMax, workoutVolume } from "@/domain/metrics";
+import { findWorkout } from "@/server/repositories/workouts";
+
+export default async function WorkoutDetailPage({ params }: PageProps<"/workouts/[id]">) {
+  const { id } = await params;
+  const workout = await findWorkout(id).catch(() => null);
+
+  if (!workout) notFound();
+
+  return (
+    <>
+      <PageHeader
+        title={workout.title}
+        description={`${formatDate(workout.performedAt)} · ${formatVolume(workoutVolume(workout))} total volume`}
+      />
+
+      {workout.notes ? (
+        <p className="mb-6 rounded-lg border border-neutral-200 bg-white p-4 text-sm dark:border-neutral-800 dark:bg-neutral-950">
+          {workout.notes}
+        </p>
+      ) : null}
+
+      <div className="space-y-4">
+        {workout.entries.map((entry, index) => {
+          const best = bestSet(entry.sets);
+
+          return (
+            <Card key={`${entry.exerciseId}-${index}`}>
+              <div className="mb-3 flex items-baseline justify-between gap-4">
+                <h2 className="font-medium">{entry.exerciseName}</h2>
+                <span className="text-sm text-neutral-500 dark:text-neutral-400">
+                  {formatVolume(entryVolume(entry))}
+                </span>
+              </div>
+
+              <ul className="space-y-1">
+                {entry.sets.map((set, setIndex) => (
+                  <li
+                    key={setIndex}
+                    className="flex items-center gap-3 text-sm tabular-nums"
+                  >
+                    <span className="w-6 text-neutral-400">{setIndex + 1}</span>
+                    <span className="font-medium">{formatWeight(set.weightKg)}</span>
+                    <span className="text-neutral-500 dark:text-neutral-400">
+                      × {set.reps}
+                    </span>
+                    {set.rpe ? (
+                      <span className="text-neutral-400">RPE {set.rpe}</span>
+                    ) : null}
+                    {set.isWarmup ? (
+                      <span className="rounded bg-neutral-100 px-1.5 py-0.5 text-xs text-neutral-500 dark:bg-neutral-900 dark:text-neutral-400">
+                        warmup
+                      </span>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+
+              {best ? (
+                <p className="mt-3 border-t border-neutral-200 pt-2 text-sm text-neutral-500 dark:border-neutral-800 dark:text-neutral-400">
+                  Best set {formatWeight(best.weightKg)} × {best.reps} · est. 1RM{" "}
+                  {formatWeight(estimatedOneRepMax(best))}
+                </p>
+              ) : null}
+            </Card>
+          );
+        })}
+      </div>
+    </>
+  );
+}
