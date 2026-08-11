@@ -74,6 +74,8 @@ These caused real bugs during the initial build. Preserve them.
 
 **Both the connection and the models are cached on `globalThis`.** `src/lib/mongoose.ts` caches the connection across hot reloads, and each model does `mongoose.models.X ?? mongoose.model(...)`. Without both, dev reloads throw `OverwriteModelError` and leak connection pools.
 
+The cost of that cache: **adding a field to a Mongoose schema requires restarting `npm run dev`.** Hot reload re-runs the module, but `mongoose.models.X ??` short-circuits to the model compiled at boot, which has no path for the new field, so Mongoose silently strips it — validation passes, the API returns 201, and the field is simply absent from the document. If a newly added field is missing from reads and writes with no error anywhere, restart the dev server before debugging anything else.
+
 **Exercise names are unique case-insensitively** via a collation index. Duplicates surface as Mongo error 11000 → 409 from the API, inline field error from the action.
 
 ### Next.js 16 specifics

@@ -92,6 +92,68 @@ describe("exerciseInputSchema", () => {
     expect(result.success).toBe(false);
   });
 
+  it("accepts a machine with a brand", () => {
+    const parsed = exerciseInputSchema.parse({
+      name: "Chest Press",
+      muscleGroup: "chest",
+      equipment: "machine",
+      machineBrand: "Technogym",
+    });
+    expect(parsed.machineBrand).toBe("Technogym");
+  });
+
+  it("treats a machine with no brand as valid, since the brand is optional", () => {
+    const parsed = exerciseInputSchema.parse({
+      name: "Chest Press",
+      muscleGroup: "chest",
+      equipment: "machine",
+    });
+    expect(parsed.machineBrand).toBeUndefined();
+  });
+
+  it("reads an unselected dropdown's empty string as no brand", () => {
+    const parsed = exerciseInputSchema.parse({
+      name: "Chest Press",
+      muscleGroup: "chest",
+      equipment: "machine",
+      machineBrand: "",
+    });
+    expect(parsed.machineBrand).toBeUndefined();
+  });
+
+  it("rejects an unknown brand", () => {
+    const result = exerciseInputSchema.safeParse({
+      name: "Chest Press",
+      muscleGroup: "chest",
+      equipment: "machine",
+      machineBrand: "Definitely Not A Brand",
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects a brand on non-machine equipment", () => {
+    const result = exerciseInputSchema.safeParse({
+      name: "Bench Press",
+      muscleGroup: "chest",
+      equipment: "barbell",
+      machineBrand: "Technogym",
+    });
+
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(toFieldErrors(result.error).machineBrand).toBeDefined();
+  });
+
+  it("allows an empty brand on non-machine equipment", () => {
+    const result = exerciseInputSchema.safeParse({
+      name: "Bench Press",
+      muscleGroup: "chest",
+      equipment: "barbell",
+      machineBrand: "",
+    });
+    expect(result.success).toBe(true);
+  });
+
   it("collapses runs of internal whitespace to a single space", () => {
     const parsed = exerciseInputSchema.parse({
       name: "Bench    Press",

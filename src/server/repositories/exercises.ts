@@ -6,13 +6,14 @@ import { connectToDatabase } from "@/lib/mongoose";
 import { ExerciseModel } from "@/models/exercise";
 import type { Exercise } from "@/domain/types";
 import type { ExerciseInput } from "@/domain/schemas";
-import type { Equipment, MuscleGroup } from "@/domain/constants";
+import type { Equipment, MachineBrand, MuscleGroup } from "@/domain/constants";
 
 type LeanExercise = {
   _id: unknown;
   name: string;
   muscleGroup: MuscleGroup;
   equipment: Equipment;
+  machineBrand?: MachineBrand | null;
   notes?: string | null;
 };
 
@@ -22,6 +23,7 @@ function toExercise(doc: LeanExercise): Exercise {
     name: doc.name,
     muscleGroup: doc.muscleGroup,
     equipment: doc.equipment,
+    ...(doc.machineBrand ? { machineBrand: doc.machineBrand } : {}),
     ...(doc.notes ? { notes: doc.notes } : {}),
   };
 }

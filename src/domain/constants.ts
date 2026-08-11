@@ -20,8 +20,28 @@ export const EQUIPMENT = [
   "other",
 ] as const;
 
+// Only meaningful when equipment is "machine", since plates and dumbbells are
+// not tracked by manufacturer here
+export const MACHINE_BRANDS = [
+  "Life Fitness",
+  "Technogym",
+  "Hammer Strength",
+  "Cybex",
+  "Precor",
+  "Matrix",
+  "Nautilus",
+  "Gym80",
+  "Panatta",
+  "Prime Fitness",
+  "Other",
+] as const;
+
 export type MuscleGroup = (typeof MUSCLE_GROUPS)[number];
 export type Equipment = (typeof EQUIPMENT)[number];
+export type MachineBrand = (typeof MACHINE_BRANDS)[number];
+
+// The one equipment value that unlocks the brand field
+export const BRANDED_EQUIPMENT: Equipment = "machine";
 
 // Guards against typos and absurd entries at the system boundary
 export const LIMITS = {

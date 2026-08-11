@@ -2,7 +2,15 @@
 
 import { useActionState, useId, useState } from "react";
 
-import { EQUIPMENT, EXERCISE_NAME_MESSAGE, EXERCISE_NAME_PATTERN, MUSCLE_GROUPS } from "@/domain/constants";
+import {
+  BRANDED_EQUIPMENT,
+  EQUIPMENT,
+  EXERCISE_NAME_MESSAGE,
+  EXERCISE_NAME_PATTERN,
+  MACHINE_BRANDS,
+  MUSCLE_GROUPS,
+} from "@/domain/constants";
+import type { Equipment } from "@/domain/constants";
 import { createExerciseAction } from "@/server/actions/exercises";
 import { initialActionState } from "@/server/actions/state";
 
@@ -12,6 +20,8 @@ const inputClass =
 export function ExerciseForm() {
   const [state, action, pending] = useActionState(createExerciseAction, initialActionState);
   const [name, setName] = useState("");
+  // Controlled so the brand dropdown can appear only for machines
+  const [equipment, setEquipment] = useState<Equipment>("barbell");
   const nameErrorId = useId();
 
   // Reset the controlled name field once a submission actually succeeds.
@@ -25,6 +35,7 @@ export function ExerciseForm() {
     setPrevState(state);
     if (state.status === "idle" && state !== initialActionState) {
       setName("");
+      setEquipment("barbell");
     } else if (state.status === "error") {
       setRejectedName(name);
     }
@@ -36,6 +47,7 @@ export function ExerciseForm() {
   const serverNameError = name === rejectedName ? (state.fieldErrors?.name ?? null) : null;
   const nameError = clientNameError ?? serverNameError;
   const isNameInvalid = name.trim().length === 0 || clientNameError !== null;
+  const showBrand = equipment === BRANDED_EQUIPMENT;
 
   return (
     <form
@@ -82,7 +94,13 @@ export function ExerciseForm() {
           <label htmlFor="equipment" className="mb-1 block text-xs font-medium">
             Equipment
           </label>
-          <select id="equipment" name="equipment" className={inputClass} defaultValue="barbell">
+          <select
+            id="equipment"
+            name="equipment"
+            className={inputClass}
+            value={equipment}
+            onChange={(event) => setEquipment(event.target.value as Equipment)}
+          >
             {EQUIPMENT.map((item) => (
               <option key={item} value={item}>
                 {item}
@@ -91,7 +109,37 @@ export function ExerciseForm() {
           </select>
         </div>
 
-        <div className="flex items-end">
+        {showBrand ? (
+          <div>
+            <label htmlFor="machineBrand" className="mb-1 block text-xs font-medium">
+              Machine brand{" "}
+              <span className="font-normal text-neutral-400 dark:text-neutral-500">
+                (optional)
+              </span>
+            </label>
+            {/* Unmounting on equipment change also drops the value from the submission */}
+            <select
+              id="machineBrand"
+              name="machineBrand"
+              className={inputClass}
+              defaultValue=""
+            >
+              <option value="">Not specified</option>
+              {MACHINE_BRANDS.map((brand) => (
+                <option key={brand} value={brand}>
+                  {brand}
+                </option>
+              ))}
+            </select>
+            {state.fieldErrors?.machineBrand ? (
+              <p className="mt-1 text-xs text-red-600 dark:text-red-400">
+                {state.fieldErrors.machineBrand}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+
+        <div className={`flex items-end${showBrand ? " sm:col-span-3" : ""}`}>
           <button
             type="submit"
             disabled={pending || isNameInvalid}

@@ -1,12 +1,14 @@
 import mongoose, { Schema, type InferSchemaType, type Model } from "mongoose";
 
-import { EQUIPMENT, MUSCLE_GROUPS } from "@/domain/constants";
+import { EQUIPMENT, MACHINE_BRANDS, MUSCLE_GROUPS } from "@/domain/constants";
 
 const exerciseSchema = new Schema(
   {
     name: { type: String, required: true, trim: true, maxlength: 120 },
     muscleGroup: { type: String, required: true, enum: MUSCLE_GROUPS },
     equipment: { type: String, required: true, enum: EQUIPMENT },
+    // Optional and only set for machines; the pairing rule lives in the Zod schema
+    machineBrand: { type: String, enum: MACHINE_BRANDS },
     notes: { type: String, trim: true, maxlength: 1000 },
   },
   { timestamps: true },

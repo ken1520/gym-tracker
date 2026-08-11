@@ -45,6 +45,7 @@ export default async function ExercisesPage() {
                   <p className="text-sm font-medium">{exercise.name}</p>
                   <p className="text-xs text-neutral-500 dark:text-neutral-400">
                     {exercise.muscleGroup} · {exercise.equipment}
+                    {exercise.machineBrand ? ` · ${exercise.machineBrand}` : ""}
                   </p>
                 </div>
                 <form action={deleteExerciseAction}>

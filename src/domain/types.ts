@@ -1,4 +1,4 @@
-import type { Equipment, MuscleGroup } from "@/domain/constants";
+import type { Equipment, MachineBrand, MuscleGroup } from "@/domain/constants";
 
 // Plain serializable shapes passed from Server Components to the client
 export type WorkoutSet = {
@@ -28,5 +28,7 @@ export type Exercise = {
   name: string;
   muscleGroup: MuscleGroup;
   equipment: Equipment;
+  // Optional, and only ever set when equipment is "machine"
+  machineBrand?: MachineBrand;
   notes?: string;
 };

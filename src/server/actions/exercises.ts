@@ -16,6 +16,8 @@ export async function createExerciseAction(
     name: formData.get("name"),
     muscleGroup: formData.get("muscleGroup"),
     equipment: formData.get("equipment"),
+    // Absent when the form is not showing the brand dropdown
+    machineBrand: formData.get("machineBrand"),
     ...(notes ? { notes } : {}),
   });
 

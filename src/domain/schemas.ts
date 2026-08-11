@@ -1,6 +1,14 @@
 import { z } from "zod";
 
-import { EQUIPMENT, EXERCISE_NAME_MESSAGE, EXERCISE_NAME_PATTERN, LIMITS, MUSCLE_GROUPS } from "@/domain/constants";
+import {
+  BRANDED_EQUIPMENT,
+  EQUIPMENT,
+  EXERCISE_NAME_MESSAGE,
+  EXERCISE_NAME_PATTERN,
+  LIMITS,
+  MACHINE_BRANDS,
+  MUSCLE_GROUPS,
+} from "@/domain/constants";
 
 const objectId = z
   .string()
@@ -43,8 +51,20 @@ export const exerciseInputSchema = z.object({
     .pipe(z.string().regex(EXERCISE_NAME_PATTERN, EXERCISE_NAME_MESSAGE)),
   muscleGroup: z.enum(MUSCLE_GROUPS),
   equipment: z.enum(EQUIPMENT),
+  // An unselected dropdown posts an empty string, which means "not provided"
+  machineBrand: z.preprocess(
+    (value) => (value === "" || value === null ? undefined : value),
+    z.enum(MACHINE_BRANDS).optional(),
+  ),
   notes: z.string().trim().max(1000).optional(),
-});
+}).refine(
+  (exercise) =>
+    exercise.equipment === BRANDED_EQUIPMENT || exercise.machineBrand === undefined,
+  {
+    message: `A brand only applies to ${BRANDED_EQUIPMENT} exercises`,
+    path: ["machineBrand"],
+  },
+);
 
 export type SetInput = z.infer<typeof setInputSchema>;
 export type EntryInput = z.infer<typeof entryInputSchema>;
