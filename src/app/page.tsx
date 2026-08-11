@@ -1,15 +1,20 @@
 import Link from "next/link";
 
 import { Card, ConnectionError, EmptyState, PageHeader, Stat } from "@/components/ui";
-import { formatDate, formatVolume, formatWeight } from "@/domain/format";
+import { PersonalBests } from "@/components/personal-bests";
+import { formatDate, formatVolume } from "@/domain/format";
+import { groupBestsByMuscle } from "@/domain/exercise-bests";
 import { personalBests, totalVolume, workoutVolume } from "@/domain/metrics";
+import { listExercises } from "@/server/repositories/exercises";
 import { listWorkouts } from "@/server/repositories/workouts";
-import type { Workout } from "@/domain/types";
+import type { Exercise, Workout } from "@/domain/types";
 
 export default async function DashboardPage() {
   let workouts: Workout[];
+  let exercises: Exercise[];
   try {
-    workouts = await listWorkouts();
+    // The library supplies the muscle group and brand that workouts do not store
+    [workouts, exercises] = await Promise.all([listWorkouts(), listExercises()]);
   } catch {
     return (
       <>
@@ -19,9 +24,8 @@ export default async function DashboardPage() {
     );
   }
 
-  const bests = [...personalBests(workouts).values()].sort(
-    (a, b) => b.oneRepMax - a.oneRepMax,
-  );
+  const bests = personalBests(workouts);
+  const groups = groupBestsByMuscle(bests, exercises);
 
   return (
     <>
@@ -48,7 +52,7 @@ export default async function DashboardPage() {
           <section className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <Stat label="Workouts" value={String(workouts.length)} />
             <Stat label="Total volume" value={formatVolume(totalVolume(workouts))} />
-            <Stat label="Exercises tracked" value={String(bests.length)} />
+            <Stat label="Exercises tracked" value={String(bests.size)} />
           </section>
 
           <section>
@@ -77,26 +81,12 @@ export default async function DashboardPage() {
             </ul>
           </section>
 
-          {bests.length > 0 ? (
+          {groups.length > 0 ? (
             <section>
               <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-neutral-500 dark:text-neutral-400">
-                Estimated 1RM
+                Personal bests
               </h2>
-              <Card>
-                <ul className="divide-y divide-neutral-200 dark:divide-neutral-800">
-                  {bests.slice(0, 8).map((best) => (
-                    <li
-                      key={best.exerciseName}
-                      className="flex items-center justify-between py-2 text-sm first:pt-0 last:pb-0"
-                    >
-                      <span>{best.exerciseName}</span>
-                      <span className="font-medium tabular-nums">
-                        {formatWeight(best.oneRepMax)}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </Card>
+              <PersonalBests groups={groups} />
             </section>
           ) : null}
         </div>

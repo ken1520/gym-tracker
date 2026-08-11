@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { formatDate, formatVolume, formatWeight, toDateInputValue } from "@/domain/format";
+import { formatDate, formatSet, formatVolume, formatWeight, toDateInputValue } from "@/domain/format";
 
 describe("formatWeight", () => {
   it("drops the decimal for whole numbers", () => {
@@ -38,6 +38,20 @@ describe("formatVolume", () => {
 
   it("rounds to whole kilograms", () => {
     expect(formatVolume(2115.4)).toBe("2,115 kg");
+  });
+});
+
+describe("formatSet", () => {
+  it("reads as weight by reps", () => {
+    expect(formatSet(100, 5)).toBe("100 kg × 5");
+  });
+
+  it("keeps fractional plates", () => {
+    expect(formatSet(102.5, 3)).toBe("102.5 kg × 3");
+  });
+
+  it("renders a bodyweight set without inventing a load", () => {
+    expect(formatSet(0, 12)).toBe("0 kg × 12");
   });
 });
 

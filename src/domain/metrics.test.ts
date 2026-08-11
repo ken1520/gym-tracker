@@ -106,6 +106,17 @@ describe("personalBests", () => {
     expect(bests.get("a")?.oneRepMax).toBeCloseTo(140, 5);
   });
 
+  it("keeps the set the estimate came from", () => {
+    const bests = personalBests([
+      workout("w1", [
+        { exerciseId: "a", exerciseName: "Squat", sets: [set(130, 1), set(120, 5)] },
+      ]),
+    ]);
+
+    // 120 x 5 estimates to 140, so the heaviest set on the day is not the best one
+    expect(bests.get("a")?.set).toEqual(set(120, 5));
+  });
+
   it("tracks exercises independently and skips warmup-only entries", () => {
     const bests = personalBests([
       workout("w1", [

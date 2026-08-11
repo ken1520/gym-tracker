@@ -62,7 +62,7 @@ npx tsx --env-file=.env.atlas.local scripts/seed.ts --force
 - **Log workouts** with multiple exercises, per-set weight/reps/RPE, and warmup flags
 - **History** as a month calendar, where logged days are shaded by training volume; pick a day to see its sessions
 - **Exercise library** with muscle group and equipment, unique by name
-- **Dashboard** showing total volume and estimated 1RM per exercise
+- **Dashboard** showing total volume plus a personal best and estimated 1RM per exercise, grouped into collapsible muscle groups
 
 Warmup sets are excluded from volume, set counts, and personal bests.
 

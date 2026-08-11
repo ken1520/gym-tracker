@@ -10,6 +10,11 @@ export function formatVolume(kg: number): string {
   return `${Math.round(kg).toLocaleString(LOCALE)} kg`;
 }
 
+// A single set as lifted, e.g. "100 kg × 5"
+export function formatSet(weightKg: number, reps: number): string {
+  return `${formatWeight(weightKg)} × ${reps}`;
+}
+
 // Rendered in UTC to match how workouts are stored and how the calendar groups
 // them; local rendering would show a day either side of the cell it sits in
 export function formatDate(iso: string): string {

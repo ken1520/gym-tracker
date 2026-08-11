@@ -42,11 +42,16 @@ export function bestSet(sets: readonly WorkoutSet[]): WorkoutSet | null {
   );
 }
 
+export type PersonalBest = {
+  exerciseName: string;
+  // The set the estimate came from, so the UI can show the lift behind the number
+  set: WorkoutSet;
+  oneRepMax: number;
+};
+
 // Heaviest estimated 1RM ever recorded for one exercise, keyed by exercise id
-export function personalBests(
-  workouts: readonly Workout[],
-): Map<string, { exerciseName: string; oneRepMax: number }> {
-  const bests = new Map<string, { exerciseName: string; oneRepMax: number }>();
+export function personalBests(workouts: readonly Workout[]): Map<string, PersonalBest> {
+  const bests = new Map<string, PersonalBest>();
 
   for (const workout of workouts) {
     for (const entry of workout.entries) {
@@ -56,7 +61,11 @@ export function personalBests(
       const oneRepMax = estimatedOneRepMax(best);
       const current = bests.get(entry.exerciseId);
       if (!current || oneRepMax > current.oneRepMax) {
-        bests.set(entry.exerciseId, { exerciseName: entry.exerciseName, oneRepMax });
+        bests.set(entry.exerciseId, {
+          exerciseName: entry.exerciseName,
+          set: best,
+          oneRepMax,
+        });
       }
     }
   }
