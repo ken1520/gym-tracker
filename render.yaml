@@ -1,0 +1,23 @@
+# Render Blueprint: https://render.com/docs/blueprint-spec
+# Import from the Render dashboard with "New > Blueprint", or configure the same
+# values by hand on an existing service.
+services:
+  - type: web
+    name: gym-tracker
+    runtime: node
+    # Free instances sleep when idle and have no static outbound IP. See the
+    # Atlas network access note in README.md before choosing.
+    plan: free
+    buildCommand: npm ci && npm run build
+    startCommand: npm run start
+    healthCheckPath: /
+    envVars:
+      # Matches .node-version; the toolchain does not run on Node 18 or 20
+      - key: NODE_VERSION
+        value: "22"
+      # sync: false means Render prompts for the value and never stores it in
+      # this file — the Atlas SRV string contains a password
+      - key: MONGODB_URI
+        sync: false
+      - key: MONGODB_DB
+        value: gym_tracker

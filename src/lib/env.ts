@@ -1,8 +1,19 @@
 import { z } from "zod";
 
+// Both schemes are accepted: mongodb:// for the local Docker container,
+// mongodb+srv:// for Atlas. Anything else is a typo, and catching it here
+// beats an opaque driver error at request time.
+const URI_SCHEMES = ["mongodb://", "mongodb+srv://"] as const;
+
 // Validated lazily so `next build` works without a database present
 const envSchema = z.object({
-  MONGODB_URI: z.string().min(1, "MONGODB_URI is required"),
+  MONGODB_URI: z
+    .string()
+    .min(1, "MONGODB_URI is required")
+    .refine(
+      (uri) => URI_SCHEMES.some((scheme) => uri.startsWith(scheme)),
+      "MONGODB_URI must start with mongodb:// or mongodb+srv://",
+    ),
   MONGODB_DB: z.string().min(1).default("gym_tracker"),
 });
 
@@ -24,4 +35,26 @@ export function readEnv(): Env {
   }
 
   return parsed.data;
+}
+
+const LOCAL_HOSTS = ["localhost", "127.0.0.1", "[::1]", "host.docker.internal", "mongo"];
+
+// Atlas is always reached over the public internet, so a mongodb+srv:// URI is
+// never local. Used to keep the destructive seed away from a remote database.
+//
+// Parsed rather than pattern-matched: "mongodb://localhost:pass@db.example.com"
+// puts a local-looking name in the credentials, and a regex reads it as the host.
+export function isLocalMongoUri(uri: string): boolean {
+  let parsed: URL;
+  try {
+    parsed = new URL(uri);
+  } catch {
+    // Comma-separated replica-set hosts and odd password characters do not
+    // parse; calling those remote is the safe direction for the seed guard
+    return false;
+  }
+
+  if (parsed.protocol !== "mongodb:") return false;
+
+  return LOCAL_HOSTS.includes(parsed.hostname.toLowerCase());
 }

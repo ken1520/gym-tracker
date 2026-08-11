@@ -2,7 +2,7 @@
 // Run with: npm run seed
 import mongoose from "mongoose";
 
-import { readEnv } from "../src/lib/env";
+import { isLocalMongoUri, readEnv } from "../src/lib/env";
 import { ExerciseModel } from "../src/models/exercise";
 import { WorkoutModel } from "../src/models/workout";
 import type { Equipment, MuscleGroup } from "../src/domain/constants";
@@ -24,8 +24,23 @@ const STARTER_EXERCISES: {
   { name: "Plank", muscleGroup: "core", equipment: "bodyweight" },
 ];
 
+// An Atlas URI carries a password, and this message goes to a terminal
+function redactUri(uri: string): string {
+  return uri.replace(/\/\/[^@/]*@/, "//***@");
+}
+
 async function seed(): Promise<void> {
   const env = readEnv();
+
+  // Seeding wipes both collections. Against Atlas that is real training history,
+  // so a remote target has to be confirmed rather than reached by a stray script
+  if (!isLocalMongoUri(env.MONGODB_URI) && !process.argv.includes("--force")) {
+    throw new Error(
+      `Refusing to seed a non-local database (${redactUri(env.MONGODB_URI)}). ` +
+        "Seeding deletes every exercise and workout. Re-run with --force if that is what you want.",
+    );
+  }
+
   await mongoose.connect(env.MONGODB_URI, { dbName: env.MONGODB_DB });
 
   await ExerciseModel.deleteMany({});

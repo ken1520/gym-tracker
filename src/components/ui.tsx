@@ -57,9 +57,21 @@ export function ConnectionError({ message }: { message: string }) {
   return (
     <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm dark:border-amber-900 dark:bg-amber-950/40">
       <p className="font-medium text-amber-900 dark:text-amber-200">{message}</p>
+      {/* The remedy differs by environment: locally it is nearly always a
+          stopped container, in production a bad URI or an Atlas IP allowlist */}
       <p className="mt-1 text-amber-800 dark:text-amber-300">
-        Start MongoDB with <code className="font-mono">docker compose up -d</code> and make sure
-        <code className="ml-1 font-mono">MONGODB_URI</code> is set in <code className="font-mono">.env.local</code>.
+        {process.env.NODE_ENV === "production" ? (
+          <>
+            Check that <code className="font-mono">MONGODB_URI</code> is set and that this service
+            is allowed to reach the database.
+          </>
+        ) : (
+          <>
+            Start MongoDB with <code className="font-mono">docker compose up -d</code> and make sure
+            <code className="ml-1 font-mono">MONGODB_URI</code> is set in{" "}
+            <code className="font-mono">.env.local</code>.
+          </>
+        )}
       </p>
     </div>
   );
