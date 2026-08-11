@@ -4,6 +4,7 @@ import { connection } from "next/server";
 
 import { connectToDatabase } from "@/lib/mongoose";
 import { ExerciseModel } from "@/models/exercise";
+import { toUpdateDoc } from "@/server/repositories/update-doc";
 import type { Exercise } from "@/domain/types";
 import type { ExerciseInput } from "@/domain/schemas";
 import type { Equipment, MachineBrand, MuscleGroup } from "@/domain/constants";
@@ -44,6 +45,19 @@ export async function createExercise(input: ExerciseInput): Promise<Exercise> {
   await connectToDatabase();
   const created = await ExerciseModel.create(input);
   return toExercise(created.toObject() as LeanExercise);
+}
+
+export async function updateExercise(id: string, input: ExerciseInput): Promise<Exercise | null> {
+  await connectToDatabase();
+  const updated = await ExerciseModel.findByIdAndUpdate(
+    id,
+    toUpdateDoc(input, ["machineBrand", "notes"]),
+    { new: true, runValidators: true },
+  )
+    .lean<LeanExercise | null>()
+    .exec();
+
+  return updated ? toExercise(updated) : null;
 }
 
 export async function deleteExercise(id: string): Promise<boolean> {

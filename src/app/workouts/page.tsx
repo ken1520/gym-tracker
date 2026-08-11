@@ -87,15 +87,23 @@ export default async function WorkoutsPage({ searchParams }: PageProps<"/workout
                           {formatVolume(workoutVolume(workout))}
                         </p>
                       </Link>
-                      <form action={deleteWorkoutAction}>
-                        <input type="hidden" name="id" value={workout.id} />
-                        <button
-                          type="submit"
-                          className="rounded-md px-2 py-1 text-sm text-neutral-500 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/50 dark:hover:text-red-400"
+                      <div className="flex shrink-0 items-center gap-1">
+                        <Link
+                          href={`/workouts/${workout.id}/edit`}
+                          className="rounded-md px-2 py-1 text-sm text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-neutral-900 dark:hover:bg-neutral-900 dark:hover:text-neutral-100"
                         >
-                          Delete
-                        </button>
-                      </form>
+                          Edit
+                        </Link>
+                        <form action={deleteWorkoutAction}>
+                          <input type="hidden" name="id" value={workout.id} />
+                          <button
+                            type="submit"
+                            className="rounded-md px-2 py-1 text-sm text-neutral-500 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/50 dark:hover:text-red-400"
+                          >
+                            Delete
+                          </button>
+                        </form>
+                      </div>
                     </div>
                   </Card>
                 </li>

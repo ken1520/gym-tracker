@@ -4,6 +4,7 @@ import { connection } from "next/server";
 
 import { connectToDatabase } from "@/lib/mongoose";
 import { WorkoutModel } from "@/models/workout";
+import { toUpdateDoc } from "@/server/repositories/update-doc";
 import type { Workout } from "@/domain/types";
 import type { WorkoutInput } from "@/domain/schemas";
 
@@ -85,6 +86,20 @@ export async function createWorkout(input: WorkoutInput): Promise<Workout> {
   await connectToDatabase();
   const created = await WorkoutModel.create(input);
   return toWorkout(created.toObject() as LeanWorkout);
+}
+
+export async function updateWorkout(id: string, input: WorkoutInput): Promise<Workout | null> {
+  await connectToDatabase();
+  const updated = await WorkoutModel.findByIdAndUpdate(
+    id,
+    // Entries are replaced wholesale, so a removed set or exercise really goes away
+    toUpdateDoc(input, ["notes"]),
+    { new: true, runValidators: true },
+  )
+    .lean<LeanWorkout | null>()
+    .exec();
+
+  return updated ? toWorkout(updated) : null;
 }
 
 export async function deleteWorkout(id: string): Promise<boolean> {

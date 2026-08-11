@@ -46,7 +46,7 @@ Three layers, strictly one-directional (`app` → `server` → `domain`):
 
 - **`src/domain/`** — pure, dependency-free. Types, Zod schemas, metric math, formatting. No database or React imports, which is why it carries essentially all the test coverage.
 - **`src/server/`** — everything touching the database or the request. Repositories, Server Actions, form parsing, the API envelope. Every repository imports `server-only`.
-- **`src/app/`**, **`src/components/`** — routes and UI. Pages are Server Components that call repositories directly; only `workout-form.tsx` and `exercise-form.tsx` are `"use client"`.
+- **`src/app/`**, **`src/components/`** — routes and UI. Pages are Server Components that call repositories directly; `workout-form.tsx`, `exercise-form.tsx` and `exercise-row.tsx` are the `"use client"` entry points. `exercise-fields.tsx` is shared by the create form and the row editor and deliberately carries no directive — it joins its importers' bundle, which is what lets it take a plain `onCancel` callback instead of only serializable props.
 
 `src/models/` holds Mongoose schemas, imported only by repositories and the seed script.
 
@@ -67,6 +67,12 @@ These caused real bugs during the initial build. Preserve them.
 **Calendar dates are computed in UTC, end to end.** `performedAt` is a UTC instant and form submissions land on UTC midnight, so `src/domain/calendar.ts` does all its date math with `Date.UTC` and `getUTC*`, and `formatDate` pins `timeZone: "UTC"`. Mixing in local time puts a workout in a different cell than the date printed beside it for anyone not on UTC. `format.test.ts` is timezone-sensitive — run it under `TZ=America/Los_Angeles` as well as the default when touching date code.
 
 **`/workouts` state lives in the URL** (`?month=YYYY-MM&day=YYYY-MM-DD`), which keeps the page a Server Component with no client JS and makes months linkable. `resolveMonthKey` falls back to the current month for absent or malformed values, so params are never trusted. The page loads only the selected month via `listWorkoutsInMonth`, not the whole history.
+
+**Edits replace the whole record, and clearing a field needs `$unset`.** Updates reuse the same Zod schemas as creates, so a save carries every field and the REST verb is `PUT`, not `PATCH`. Mongo leaves a key alone when the update document omits it, so `toUpdateDoc` in `src/server/repositories/update-doc.ts` sorts fields into `$set` and `$unset` — without it, switching an exercise off `machine` would keep its old brand. Any new optional field must be added to that call's clearable list, or it will be impossible to clear.
+
+Because entries are replaced wholesale, anything the form does not post is lost on save. That is why `workout-form.tsx` keeps a hidden input for each set's `rpe` (no UI collects it) and `exercise-fields.tsx` does the same for exercise `notes`. Adding a stored field that the form does not render means adding another such carrier.
+
+**Editing a workout must survive a deleted exercise.** `buildOptions` in `workout-form.tsx` merges the library with any `exerciseId` the workout references but the library no longer has, so the entry stays selectable. The option's `label` carries the `(removed)` marker and its `name` stays clean — the form posts `name`, so collapsing the two would write the marker into `exerciseName`.
 
 **Warmup sets are excluded from every metric.** Volume, set counts, best set, and PRs all filter on `isWarmup`. New metrics must do the same.
 

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
-import { deleteWorkout, findWorkout } from "@/server/repositories/workouts";
+import { toFieldErrors, workoutInputSchema } from "@/domain/schemas";
+import { deleteWorkout, findWorkout, updateWorkout } from "@/server/repositories/workouts";
 import { apiError, apiSuccess } from "@/server/api/response";
 
 // Route params are async in Next.js 16
@@ -18,6 +19,38 @@ export async function GET(_request: Request, { params }: RouteContext) {
   } catch (error) {
     console.error(`GET /api/workouts/${id} failed`, error);
     return NextResponse.json(apiError("Could not load workout"), { status: 503 });
+  }
+}
+
+// PUT rather than PATCH: the schema requires every field, so a save replaces
+// the whole workout, entries included
+export async function PUT(request: Request, { params }: RouteContext) {
+  const { id } = await params;
+
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json(apiError("Request body must be valid JSON"), { status: 400 });
+  }
+
+  const parsed = workoutInputSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json(
+      apiError("Validation failed", toFieldErrors(parsed.error)),
+      { status: 422 },
+    );
+  }
+
+  try {
+    const workout = await updateWorkout(id, parsed.data);
+    if (!workout) {
+      return NextResponse.json(apiError("Workout not found"), { status: 404 });
+    }
+    return NextResponse.json(apiSuccess(workout));
+  } catch (error) {
+    console.error(`PUT /api/workouts/${id} failed`, error);
+    return NextResponse.json(apiError("Could not update workout"), { status: 503 });
   }
 }
 

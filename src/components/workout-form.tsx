@@ -1,18 +1,29 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState, useState } from "react";
 
-import { createWorkoutAction } from "@/server/actions/workouts";
+import { createWorkoutAction, updateWorkoutAction } from "@/server/actions/workouts";
 import { initialActionState } from "@/server/actions/state";
 import { toDateInputValue } from "@/domain/format";
-import type { Exercise } from "@/domain/types";
+import type { Exercise, Workout } from "@/domain/types";
 
 const inputClass =
   "w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm outline-none focus:border-neutral-900 dark:border-neutral-700 dark:bg-neutral-950 dark:focus:border-neutral-100";
 
 // Rows carry a stable key so React does not reorder inputs when one is removed
-type SetRow = { key: string; weightKg: string; reps: string; isWarmup: boolean };
+type SetRow = {
+  key: string;
+  weightKg: string;
+  reps: string;
+  isWarmup: boolean;
+  // Not editable here, but carried through so saving an edit cannot drop it
+  rpe?: string;
+};
 type EntryRow = { key: string; exerciseId: string; sets: SetRow[] };
+// label is what the dropdown shows; name is what gets stored, and the two differ
+// for a deleted exercise so the marker never writes itself into the record
+type ExerciseOption = { id: string; name: string; label: string };
 
 let rowCounter = 0;
 const nextKey = () => `row-${rowCounter++}`;
@@ -24,15 +35,64 @@ const emptyEntry = (exerciseId: string): EntryRow => ({
   sets: [emptySet()],
 });
 
-export function WorkoutForm({ exercises }: { exercises: Exercise[] }) {
-  const [state, action, pending] = useActionState(createWorkoutAction, initialActionState);
-  const [entries, setEntries] = useState<EntryRow[]>(() =>
-    exercises.length > 0 ? [emptyEntry(exercises[0].id)] : [],
+// An edited workout can reference an exercise that has since been deleted.
+// exerciseName is denormalized for exactly that case, so the option list keeps
+// those ids selectable instead of silently rewriting the entry.
+function buildOptions(exercises: Exercise[], workout?: Workout): ExerciseOption[] {
+  const options = new Map<string, ExerciseOption>(
+    exercises.map((exercise) => [
+      exercise.id,
+      { id: exercise.id, name: exercise.name, label: exercise.name },
+    ]),
   );
 
+  for (const entry of workout?.entries ?? []) {
+    if (!options.has(entry.exerciseId)) {
+      options.set(entry.exerciseId, {
+        id: entry.exerciseId,
+        name: entry.exerciseName,
+        label: `${entry.exerciseName} (removed)`,
+      });
+    }
+  }
+
+  return [...options.values()];
+}
+
+function toRows(workout: Workout): EntryRow[] {
+  return workout.entries.map((entry) => ({
+    key: nextKey(),
+    exerciseId: entry.exerciseId,
+    sets: entry.sets.map((set) => ({
+      key: nextKey(),
+      weightKg: String(set.weightKg),
+      reps: String(set.reps),
+      isWarmup: set.isWarmup,
+      ...(set.rpe === undefined ? {} : { rpe: String(set.rpe) }),
+    })),
+  }));
+}
+
+export function WorkoutForm({
+  exercises,
+  workout,
+}: {
+  exercises: Exercise[];
+  workout?: Workout;
+}) {
+  const options = buildOptions(exercises, workout);
+  const [state, action, pending] = useActionState(
+    workout ? updateWorkoutAction : createWorkoutAction,
+    initialActionState,
+  );
+  const [entries, setEntries] = useState<EntryRow[]>(() => {
+    if (workout) return toRows(workout);
+    return options.length > 0 ? [emptyEntry(options[0].id)] : [];
+  });
+
   const addEntry = () => {
-    if (exercises.length === 0) return;
-    setEntries((current) => [...current, emptyEntry(exercises[0].id)]);
+    if (options.length === 0) return;
+    setEntries((current) => [...current, emptyEntry(options[0].id)]);
   };
 
   const removeEntry = (key: string) =>
@@ -71,7 +131,7 @@ export function WorkoutForm({ exercises }: { exercises: Exercise[] }) {
       ),
     );
 
-  if (exercises.length === 0) {
+  if (options.length === 0) {
     return (
       <div className="rounded-lg border border-dashed border-neutral-300 p-10 text-center dark:border-neutral-700">
         <p className="text-sm font-medium">Add an exercise first</p>
@@ -84,6 +144,8 @@ export function WorkoutForm({ exercises }: { exercises: Exercise[] }) {
 
   return (
     <form action={action} className="space-y-6">
+      {workout ? <input type="hidden" name="id" value={workout.id} /> : null}
+
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <div className="sm:col-span-2">
           <label htmlFor="title" className="mb-1 block text-xs font-medium">
@@ -93,7 +155,7 @@ export function WorkoutForm({ exercises }: { exercises: Exercise[] }) {
             id="title"
             name="title"
             required
-            defaultValue="Training session"
+            defaultValue={workout?.title ?? "Training session"}
             className={inputClass}
           />
           {state.fieldErrors?.title ? (
@@ -111,7 +173,7 @@ export function WorkoutForm({ exercises }: { exercises: Exercise[] }) {
             name="performedAt"
             type="date"
             required
-            defaultValue={toDateInputValue(new Date().toISOString())}
+            defaultValue={toDateInputValue(workout?.performedAt ?? new Date().toISOString())}
             className={inputClass}
           />
         </div>
@@ -119,7 +181,7 @@ export function WorkoutForm({ exercises }: { exercises: Exercise[] }) {
 
       <div className="space-y-4">
         {entries.map((entry, entryIndex) => {
-          const selected = exercises.find((exercise) => exercise.id === entry.exerciseId);
+          const selected = options.find((option) => option.id === entry.exerciseId);
 
           return (
             <div
@@ -144,9 +206,9 @@ export function WorkoutForm({ exercises }: { exercises: Exercise[] }) {
                   onChange={(event) => updateEntry(entry.key, event.target.value)}
                   className={inputClass}
                 >
-                  {exercises.map((exercise) => (
-                    <option key={exercise.id} value={exercise.id}>
-                      {exercise.name}
+                  {options.map((option) => (
+                    <option key={option.id} value={option.id}>
+                      {option.label}
                     </option>
                   ))}
                 </select>
@@ -163,6 +225,13 @@ export function WorkoutForm({ exercises }: { exercises: Exercise[] }) {
                 {entry.sets.map((set, setIndex) => (
                   <li key={set.key} className="flex items-center gap-2">
                     <span className="w-5 shrink-0 text-xs text-neutral-400">{setIndex + 1}</span>
+                    {set.rpe === undefined ? null : (
+                      <input
+                        type="hidden"
+                        name={`entries.${entryIndex}.sets.${setIndex}.rpe`}
+                        value={set.rpe}
+                      />
+                    )}
                     <input
                       aria-label="Weight in kg"
                       name={`entries.${entryIndex}.sets.${setIndex}.weightKg`}
@@ -235,15 +304,29 @@ export function WorkoutForm({ exercises }: { exercises: Exercise[] }) {
           disabled={pending || entries.length === 0}
           className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-neutral-700 disabled:opacity-50 dark:bg-neutral-50 dark:text-neutral-950 dark:hover:bg-neutral-300"
         >
-          {pending ? "Saving…" : "Save workout"}
+          {pending ? "Saving…" : workout ? "Save changes" : "Save workout"}
         </button>
+        {workout ? (
+          <Link
+            href={`/workouts/${workout.id}`}
+            className="text-sm text-neutral-500 underline-offset-4 hover:underline dark:text-neutral-400"
+          >
+            Cancel
+          </Link>
+        ) : null}
       </div>
 
       <div>
         <label htmlFor="notes" className="mb-1 block text-xs font-medium">
           Notes
         </label>
-        <textarea id="notes" name="notes" rows={3} className={inputClass} />
+        <textarea
+          id="notes"
+          name="notes"
+          rows={3}
+          defaultValue={workout?.notes ?? ""}
+          className={inputClass}
+        />
       </div>
 
       {state.status === "error" && state.message ? (
