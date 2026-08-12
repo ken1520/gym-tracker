@@ -15,6 +15,14 @@ export function formatSet(weightKg: number, reps: number): string {
   return `${formatWeight(weightKg)} × ${reps}`;
 }
 
+// Size of a change only — the arrow beside it carries the direction. A tiny
+// change floors to "<1%" rather than "0%", which would read as no change at all
+export function formatPercentChange(percent: number): string {
+  const size = Math.abs(percent);
+  if (size > 0 && size < 1) return "<1%";
+  return `${Math.round(size)}%`;
+}
+
 // Rendered in UTC to match how workouts are stored and how the calendar groups
 // them; local rendering would show a day either side of the cell it sits in
 export function formatDate(iso: string): string {

@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { formatDate, formatSet, formatVolume, formatWeight, toDateInputValue } from "@/domain/format";
+import {
+  formatDate,
+  formatPercentChange,
+  formatSet,
+  formatVolume,
+  formatWeight,
+  toDateInputValue,
+} from "@/domain/format";
 
 describe("formatWeight", () => {
   it("drops the decimal for whole numbers", () => {
@@ -52,6 +59,30 @@ describe("formatSet", () => {
 
   it("renders a bodyweight set without inventing a load", () => {
     expect(formatSet(0, 12)).toBe("0 kg × 12");
+  });
+});
+
+describe("formatPercentChange", () => {
+  it("reports the size of a rise", () => {
+    expect(formatPercentChange(20)).toBe("20%");
+  });
+
+  it("drops the sign, since the arrow carries the direction", () => {
+    expect(formatPercentChange(-25)).toBe("25%");
+  });
+
+  it("rounds to whole percent", () => {
+    expect(formatPercentChange(12.4)).toBe("12%");
+    expect(formatPercentChange(-12.6)).toBe("13%");
+  });
+
+  it("floors a tiny change to under one percent rather than to nothing", () => {
+    expect(formatPercentChange(0.4)).toBe("<1%");
+    expect(formatPercentChange(-0.4)).toBe("<1%");
+  });
+
+  it("still reads as zero when there really was no change", () => {
+    expect(formatPercentChange(0)).toBe("0%");
   });
 });
 

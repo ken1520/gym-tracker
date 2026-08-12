@@ -1,5 +1,8 @@
 import type { ReactNode } from "react";
 
+import { formatPercentChange } from "@/domain/format";
+import type { Trend, TrendDirection } from "@/domain/week";
+
 export function PageHeader({
   title,
   description,
@@ -41,13 +44,54 @@ export function EmptyState({ title, hint }: { title: string; hint?: string }) {
   );
 }
 
-export function Stat({ label, value }: { label: string; value: string }) {
+const TREND_COLOURS: Record<TrendDirection, string> = {
+  up: "text-green-600 dark:text-green-500",
+  down: "text-red-600 dark:text-red-500",
+  flat: "text-neutral-500 dark:text-neutral-400",
+};
+
+const TREND_ARROWS: Record<TrendDirection, string> = { up: "↑", down: "↓", flat: "–" };
+
+const TREND_WORDS: Record<TrendDirection, string> = {
+  up: "Up",
+  down: "Down",
+  flat: "No change",
+};
+
+// The arrow, not the colour, is what carries the direction — colour alone would
+// be invisible to anyone who cannot distinguish red from green
+function TrendBadge({ direction, percent }: Trend) {
+  const size = percent === null ? "" : ` ${formatPercentChange(percent)}`;
+
+  return (
+    <span className={`text-sm font-medium ${TREND_COLOURS[direction]}`}>
+      <span aria-hidden="true">
+        {TREND_ARROWS[direction]}
+        {size}
+      </span>
+      <span className="sr-only">{`${TREND_WORDS[direction]}${size} from last week`}</span>
+    </span>
+  );
+}
+
+export function Stat({
+  label,
+  value,
+  trend,
+}: {
+  label: string;
+  value: string;
+  trend?: Trend;
+}) {
   return (
     <div className="rounded-lg border border-neutral-200 p-4 dark:border-neutral-800">
       <p className="text-xs uppercase tracking-wide text-neutral-500 dark:text-neutral-400">
         {label}
       </p>
-      <p className="mt-1 text-2xl font-semibold tabular-nums">{value}</p>
+      <p className="mt-1 flex items-baseline gap-2">
+        <span className="text-2xl font-semibold tabular-nums">{value}</span>
+        {trend ? <TrendBadge {...trend} /> : null}
+      </p>
     </div>
   );
 }

@@ -4,7 +4,8 @@ import { Card, ConnectionError, EmptyState, PageHeader, Stat } from "@/component
 import { PersonalBests } from "@/components/personal-bests";
 import { formatDate, formatVolume } from "@/domain/format";
 import { groupBestsByMuscle } from "@/domain/exercise-bests";
-import { personalBests, totalVolume, workoutVolume } from "@/domain/metrics";
+import { personalBests, workoutVolume } from "@/domain/metrics";
+import { weekOverWeek, weeklyTotals } from "@/domain/week";
 import { listExercises } from "@/server/repositories/exercises";
 import { listWorkouts } from "@/server/repositories/workouts";
 import type { Exercise, Workout } from "@/domain/types";
@@ -24,8 +25,9 @@ export default async function DashboardPage() {
     );
   }
 
-  const bests = personalBests(workouts);
-  const groups = groupBestsByMuscle(bests, exercises);
+  const groups = groupBestsByMuscle(personalBests(workouts), exercises);
+  // Rendered at request time, so "this week" moves with the calendar
+  const { current, previous } = weeklyTotals(workouts);
 
   return (
     <>
@@ -50,9 +52,21 @@ export default async function DashboardPage() {
       ) : (
         <div className="space-y-8">
           <section className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <Stat label="Workouts" value={String(workouts.length)} />
-            <Stat label="Total volume" value={formatVolume(totalVolume(workouts))} />
-            <Stat label="Exercises tracked" value={String(bests.size)} />
+            <Stat
+              label="Workouts this week"
+              value={String(current.workoutCount)}
+              trend={weekOverWeek(current.workoutCount, previous.workoutCount)}
+            />
+            <Stat
+              label="Volume this week"
+              value={formatVolume(current.volume)}
+              trend={weekOverWeek(current.volume, previous.volume)}
+            />
+            <Stat
+              label="Exercises this week"
+              value={String(current.exerciseCount)}
+              trend={weekOverWeek(current.exerciseCount, previous.exerciseCount)}
+            />
           </section>
 
           <section>
