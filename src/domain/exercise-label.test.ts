@@ -1,12 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  exerciseLabel,
-  exerciseQualifier,
-  labelAll,
-  qualifierFor,
-  repeatedNames,
-} from "@/domain/exercise-label";
+import { exerciseQualifier, qualifierFor, repeatedNames } from "@/domain/exercise-label";
 import type { Distinguishable } from "@/domain/exercise-label";
 
 const ex = (name: string, overrides: Partial<Distinguishable> = {}): Distinguishable => ({
@@ -47,48 +41,7 @@ describe("repeatedNames", () => {
   });
 });
 
-describe("exerciseLabel", () => {
-  it("leaves a unique name alone", () => {
-    expect(exerciseLabel(ex("Squat"), repeatedNames([ex("Squat")]))).toBe("Squat");
-  });
 
-  it("appends the brand when a machine name repeats", () => {
-    const list = [
-      ex("Chest Press", { equipment: "machine", machineBrand: "Technogym" }),
-      ex("Chest Press", { equipment: "machine", machineBrand: "Hammer Strength" }),
-    ];
-    const repeated = repeatedNames(list);
-
-    expect(exerciseLabel(list[0], repeated)).toBe("Chest Press (Technogym)");
-    expect(exerciseLabel(list[1], repeated)).toBe("Chest Press (Hammer Strength)");
-  });
-
-  it("appends the equipment when free-weight names repeat", () => {
-    const list = [ex("Chest Press"), ex("Chest Press", { equipment: "dumbbell" })];
-    const repeated = repeatedNames(list);
-
-    expect(exerciseLabel(list[0], repeated)).toBe("Chest Press (barbell)");
-    expect(exerciseLabel(list[1], repeated)).toBe("Chest Press (dumbbell)");
-  });
-});
-
-describe("labelAll", () => {
-  it("qualifies only the ambiguous names", () => {
-    const labels = labelAll([
-      ex("Chest Press"),
-      ex("Chest Press", { equipment: "machine", machineBrand: "Cybex" }),
-      ex("Squat"),
-    ]).map((exercise) => exercise.label);
-
-    expect(labels).toEqual(["Chest Press (barbell)", "Chest Press (Cybex)", "Squat"]);
-  });
-
-  it("keeps the original fields untouched", () => {
-    const [first] = labelAll([ex("Squat")]);
-    expect(first.name).toBe("Squat");
-    expect(first.equipment).toBe("barbell");
-  });
-});
 
 describe("qualifierFor", () => {
   const none: ReadonlySet<string> = new Set();

@@ -33,19 +33,8 @@ export function repeatedNames(exercises: readonly { name: string }[]): ReadonlyS
 }
 
 // Whether a name is one of the repeated ones, normalized the same way
-export function isRepeatedName(name: string, repeated: ReadonlySet<string>): boolean {
+function isRepeatedName(name: string, repeated: ReadonlySet<string>): boolean {
   return repeated.has(normalize(name));
-}
-
-// Qualifies a name only when it is ambiguous, so a library of unique names
-// reads exactly as it did before duplicates were allowed
-export function exerciseLabel(
-  exercise: Distinguishable,
-  repeated: ReadonlySet<string>,
-): string {
-  return isRepeatedName(exercise.name, repeated)
-    ? `${exercise.name} (${exerciseQualifier(exercise)})`
-    : exercise.name;
 }
 
 // The text to show beside a name in a list that is not a picker: the brand is
@@ -60,12 +49,4 @@ export function qualifierFor(
   return exercise.machineBrand || isRepeatedName(exercise.name, repeated)
     ? exerciseQualifier(exercise)
     : undefined;
-}
-
-// Convenience for the common case: label every exercise against its own list
-export function labelAll<T extends Distinguishable>(
-  exercises: readonly T[],
-): (T & { label: string })[] {
-  const repeated = repeatedNames(exercises);
-  return exercises.map((exercise) => ({ ...exercise, label: exerciseLabel(exercise, repeated) }));
 }

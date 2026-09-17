@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useActionState, useState } from "react";
 
 import { useActionToast } from "@/components/use-action-toast";
-import { exerciseLabel, repeatedNames } from "@/domain/exercise-label";
+import { exerciseQualifier } from "@/domain/exercise-label";
 import { createWorkoutAction, updateWorkoutAction } from "@/server/actions/workouts";
 import { initialActionState } from "@/server/actions/state";
 import { toDateInputValue } from "@/domain/format";
@@ -42,15 +42,18 @@ const emptyEntry = (exerciseId: string): EntryRow => ({
 // exerciseName is denormalized for exactly that case, so the option list keeps
 // those ids selectable instead of silently rewriting the entry.
 //
-// A name may now belong to several exercises that differ by equipment or machine
-// brand, so a repeated one is shown with the qualifier that tells them apart.
-// Deleted entries are left to their own marker — it already separates them
+// Every option carries its machine brand or equipment, so picking a lift never
+// depends on remembering which "Chest Press" is which. A deleted exercise has
+// neither left to show and keeps its own marker instead
 function buildOptions(exercises: Exercise[], workout?: Workout): ExerciseOption[] {
-  const repeated = repeatedNames(exercises);
   const options = new Map<string, ExerciseOption>(
     exercises.map((exercise) => [
       exercise.id,
-      { id: exercise.id, name: exercise.name, label: exerciseLabel(exercise, repeated) },
+      {
+        id: exercise.id,
+        name: exercise.name,
+        label: `${exercise.name} (${exerciseQualifier(exercise)})`,
+      },
     ]),
   );
 
