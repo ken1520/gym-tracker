@@ -37,8 +37,8 @@ export async function PUT(request: Request, { params }: RouteContext) {
   } catch (error) {
     if (isDuplicateKeyError(error)) {
       return NextResponse.json(
-        apiError("An exercise with that name already exists", {
-          name: "Already in your library",
+        apiError("Another exercise already has that name and equipment", {
+          name: "Already in your library with this equipment",
         }),
         { status: 409 },
       );

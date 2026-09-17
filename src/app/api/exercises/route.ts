@@ -37,8 +37,8 @@ export async function POST(request: Request) {
   } catch (error) {
     if (isDuplicateKeyError(error)) {
       return NextResponse.json(
-        apiError("An exercise with that name already exists", {
-          name: "Already in your library",
+        apiError("That exercise already exists with the same equipment", {
+          name: "Already in your library with this equipment",
         }),
         { status: 409 },
       );

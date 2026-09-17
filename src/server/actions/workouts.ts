@@ -1,7 +1,6 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 
 import { toFieldErrors, workoutInputSchema } from "@/domain/schemas";
 import { createWorkout, deleteWorkout, updateWorkout } from "@/server/repositories/workouts";
@@ -31,7 +30,7 @@ export async function createWorkoutAction(
 
   revalidatePath("/");
   revalidatePath("/workouts");
-  redirect("/workouts");
+  return { status: "success", message: "Workout logged", redirectTo: "/workouts" };
 }
 
 export async function updateWorkoutAction(
@@ -64,20 +63,22 @@ export async function updateWorkoutAction(
   revalidatePath("/");
   revalidatePath("/workouts");
   revalidatePath(`/workouts/${id}`);
-  redirect(`/workouts/${id}`);
+  return { status: "success", message: "Workout updated", redirectTo: `/workouts/${id}` };
 }
 
-export async function deleteWorkoutAction(formData: FormData): Promise<void> {
+export async function deleteWorkoutAction(formData: FormData): Promise<ActionState> {
   const id = String(formData.get("id") ?? "");
-  if (!id) return;
+  if (!id) return { status: "error", message: "Missing workout id" };
 
   try {
-    await deleteWorkout(id);
+    const deleted = await deleteWorkout(id);
+    if (!deleted) return { status: "error", message: "That workout no longer exists" };
   } catch (error) {
     console.error("deleteWorkoutAction failed", error);
-    return;
+    return { status: "error", message: "Could not delete the workout. Is MongoDB running?" };
   }
 
   revalidatePath("/");
   revalidatePath("/workouts");
+  return { status: "success", message: "Workout deleted" };
 }

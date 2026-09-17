@@ -1,5 +1,6 @@
 import { MUSCLE_GROUPS } from "@/domain/constants";
-import type { MachineBrand, MuscleGroup } from "@/domain/constants";
+import type { MuscleGroup } from "@/domain/constants";
+import { qualifierFor, repeatedNames } from "@/domain/exercise-label";
 import type { PersonalBest } from "@/domain/metrics";
 import type { Exercise, WorkoutSet } from "@/domain/types";
 
@@ -12,8 +13,9 @@ export type BestsGroupKey = MuscleGroup | typeof UNGROUPED;
 export type ExerciseBest = {
   exerciseId: string;
   name: string;
-  // Only ever present for machines, and shown beside the name
-  machineBrand?: MachineBrand;
+  // Shown beside the name: always the brand for a machine, plus the equipment
+  // when the name alone would not say which exercise this row is
+  qualifier?: string;
   set: WorkoutSet;
   oneRepMax: number;
 };
@@ -40,17 +42,21 @@ export function groupBestsByMuscle(
   exercises: readonly Exercise[],
 ): BestsGroup[] {
   const library = new Map(exercises.map((exercise) => [exercise.id, exercise]));
+  // Repetition is judged against the whole library, so the same exercise is
+  // qualified here and in the workout form's dropdown or in neither
+  const repeated = repeatedNames(exercises);
   const grouped = new Map<BestsGroupKey, ExerciseBest[]>();
 
   for (const [exerciseId, best] of bests) {
     const exercise = library.get(exerciseId);
+    const qualifier = qualifierFor(exercise, repeated);
 
     const row: ExerciseBest = {
       exerciseId,
       // The library name wins so a rename shows here immediately, while the
       // denormalized name keeps a deleted exercise readable
       name: exercise?.name ?? best.exerciseName,
-      ...(exercise?.machineBrand ? { machineBrand: exercise.machineBrand } : {}),
+      ...(qualifier ? { qualifier } : {}),
       set: best.set,
       oneRepMax: best.oneRepMax,
     };

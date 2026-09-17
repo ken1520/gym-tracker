@@ -2,7 +2,9 @@
 
 import { useActionState, useState } from "react";
 
+import { DeleteButton } from "@/components/delete-button";
 import { ExerciseFields } from "@/components/exercise-fields";
+import { useActionToast } from "@/components/use-action-toast";
 import { deleteExerciseAction, updateExerciseAction } from "@/server/actions/exercises";
 import { initialActionState } from "@/server/actions/state";
 import type { Exercise } from "@/domain/types";
@@ -11,13 +13,8 @@ export function ExerciseRow({ exercise }: { exercise: Exercise }) {
   const [editing, setEditing] = useState(false);
   const [state, action, pending] = useActionState(updateExerciseAction, initialActionState);
 
-  // Close the editor once the save actually lands, the same way the create form
-  // detects success: an idle state that is no longer the initial one
-  const [prevState, setPrevState] = useState(state);
-  if (state !== prevState) {
-    setPrevState(state);
-    if (state.status === "idle" && state !== initialActionState) setEditing(false);
-  }
+  // Close the editor once the save actually lands, alongside its toast
+  useActionToast(state, () => setEditing(false));
 
   if (!editing) {
     return (
@@ -37,15 +34,7 @@ export function ExerciseRow({ exercise }: { exercise: Exercise }) {
           >
             Edit
           </button>
-          <form action={deleteExerciseAction}>
-            <input type="hidden" name="id" value={exercise.id} />
-            <button
-              type="submit"
-              className="rounded-md px-2 py-1 text-sm text-neutral-500 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/50 dark:hover:text-red-400"
-            >
-              Remove
-            </button>
-          </form>
+          <DeleteButton id={exercise.id} action={deleteExerciseAction} label="Remove" />
         </div>
       </li>
     );

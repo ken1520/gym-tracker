@@ -1,8 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useActionState, useState } from "react";
 
+import { useActionToast } from "@/components/use-action-toast";
+import { exerciseLabel, repeatedNames } from "@/domain/exercise-label";
 import { createWorkoutAction, updateWorkoutAction } from "@/server/actions/workouts";
 import { initialActionState } from "@/server/actions/state";
 import { toDateInputValue } from "@/domain/format";
@@ -38,11 +41,16 @@ const emptyEntry = (exerciseId: string): EntryRow => ({
 // An edited workout can reference an exercise that has since been deleted.
 // exerciseName is denormalized for exactly that case, so the option list keeps
 // those ids selectable instead of silently rewriting the entry.
+//
+// A name may now belong to several exercises that differ by equipment or machine
+// brand, so a repeated one is shown with the qualifier that tells them apart.
+// Deleted entries are left to their own marker — it already separates them
 function buildOptions(exercises: Exercise[], workout?: Workout): ExerciseOption[] {
+  const repeated = repeatedNames(exercises);
   const options = new Map<string, ExerciseOption>(
     exercises.map((exercise) => [
       exercise.id,
-      { id: exercise.id, name: exercise.name, label: exercise.name },
+      { id: exercise.id, name: exercise.name, label: exerciseLabel(exercise, repeated) },
     ]),
   );
 
@@ -80,11 +88,19 @@ export function WorkoutForm({
   exercises: Exercise[];
   workout?: Workout;
 }) {
+  const router = useRouter();
   const options = buildOptions(exercises, workout);
   const [state, action, pending] = useActionState(
     workout ? updateWorkoutAction : createWorkoutAction,
     initialActionState,
   );
+
+  // The action returns the destination instead of redirecting, so the toast is
+  // raised before the navigation that unmounts this form
+  useActionToast(state, () => {
+    if (state.redirectTo) router.push(state.redirectTo);
+  });
+
   const [entries, setEntries] = useState<EntryRow[]>(() => {
     if (workout) return toRows(workout);
     return options.length > 0 ? [emptyEntry(options[0].id)] : [];

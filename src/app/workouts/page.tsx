@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { DeleteButton } from "@/components/delete-button";
 import { Card, ConnectionError, EmptyState, PageHeader } from "@/components/ui";
 import { WorkoutCalendar } from "@/components/workout-calendar";
 import {
@@ -94,15 +95,11 @@ export default async function WorkoutsPage({ searchParams }: PageProps<"/workout
                         >
                           Edit
                         </Link>
-                        <form action={deleteWorkoutAction}>
-                          <input type="hidden" name="id" value={workout.id} />
-                          <button
-                            type="submit"
-                            className="rounded-md px-2 py-1 text-sm text-neutral-500 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/50 dark:hover:text-red-400"
-                          >
-                            Delete
-                          </button>
-                        </form>
+                        <DeleteButton
+                          id={workout.id}
+                          action={deleteWorkoutAction}
+                          label="Delete"
+                        />
                       </div>
                     </div>
                   </Card>

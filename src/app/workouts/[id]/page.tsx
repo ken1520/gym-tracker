@@ -3,14 +3,24 @@ import { notFound } from "next/navigation";
 
 import { Card, PageHeader } from "@/components/ui";
 import { formatDate, formatVolume, formatWeight } from "@/domain/format";
+import { qualifierFor, repeatedNames } from "@/domain/exercise-label";
 import { bestSet, entryVolume, estimatedOneRepMax, workoutVolume } from "@/domain/metrics";
 import { findWorkout } from "@/server/repositories/workouts";
+import { listExercises } from "@/server/repositories/exercises";
 
 export default async function WorkoutDetailPage({ params }: PageProps<"/workouts/[id]">) {
   const { id } = await params;
   const workout = await findWorkout(id).catch(() => null);
 
   if (!workout) notFound();
+
+  // Entries store only a denormalized name, which no longer identifies an
+  // exercise on its own now that a name can repeat across equipment. The
+  // library is joined back in purely to label them; a failed load just means
+  // unqualified names rather than a broken page
+  const exercises = await listExercises().catch(() => []);
+  const library = new Map(exercises.map((exercise) => [exercise.id, exercise]));
+  const repeated = repeatedNames(exercises);
 
   return (
     <>
@@ -36,11 +46,19 @@ export default async function WorkoutDetailPage({ params }: PageProps<"/workouts
       <div className="space-y-4">
         {workout.entries.map((entry, index) => {
           const best = bestSet(entry.sets);
+          const qualifier = qualifierFor(library.get(entry.exerciseId), repeated);
 
           return (
             <Card key={`${entry.exerciseId}-${index}`}>
               <div className="mb-3 flex items-baseline justify-between gap-4">
-                <h2 className="font-medium">{entry.exerciseName}</h2>
+                <h2 className="font-medium">
+                  {entry.exerciseName}
+                  {qualifier ? (
+                    <span className="ml-2 text-xs font-normal text-neutral-500 dark:text-neutral-400">
+                      {qualifier}
+                    </span>
+                  ) : null}
+                </h2>
                 <span className="text-sm text-neutral-500 dark:text-neutral-400">
                   {formatVolume(entryVolume(entry))}
                 </span>

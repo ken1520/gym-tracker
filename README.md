@@ -130,7 +130,7 @@ Three tabs in the top nav — Dashboard, History, Exercises.
 | 🔧  | …and equipment: barbell, dumbbell, machine, cable, bodyweight, kettlebell or other          |
 | 🏭  | Machines can also carry a brand (Life Fitness, Technogym, Hammer Strength, Gym80, …)         |
 | ✍️  | Add, rename, retype and delete inline, without leaving the page                              |
-| 🚫  | Names are unique case-insensitively — `Bench Press` and `bench press` are the same exercise   |
+| 🚫  | Unique per name + equipment + brand, case-insensitively — one barbell `Bench Press`, but a dumbbell one is a separate lift |
 | 🌱  | `npm run seed` drops in a starter library and one sample workout                             |
 
 ### 🧾 Everywhere
@@ -178,7 +178,7 @@ Responses use a consistent envelope:
 { "success": true, "data": { }, "error": null }
 ```
 
-Validation failures return `422` with a `fieldErrors` map; duplicate exercise names return `409`.
+Validation failures return `422` with a `fieldErrors` map; an exercise repeating an existing name *and* equipment returns `409`.
 
 ## 🏗️ Architecture
 

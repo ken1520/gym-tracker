@@ -90,15 +90,32 @@ describe("groupBestsByMuscle", () => {
       ],
     );
 
-    expect(groups[0].bests[0].machineBrand).toBe("Technogym");
+    expect(groups[0].bests[0].qualifier).toBe("Technogym");
   });
 
-  it("leaves the brand off anything that is not a machine", () => {
+  it("leaves the qualifier off a uniquely named non-machine", () => {
     const groups = groupBestsByMuscle(new Map([["a", best("Bench Press", 120)]]), [
       exercise("a", "Bench Press"),
     ]);
 
-    expect(groups[0].bests[0].machineBrand).toBeUndefined();
+    expect(groups[0].bests[0].qualifier).toBeUndefined();
+  });
+
+  // Two lifts may share a name when their equipment differs, and the table
+  // would otherwise show two identical-looking rows
+  it("falls back to the equipment when a name is shared", () => {
+    const groups = groupBestsByMuscle(
+      new Map([
+        ["a", best("Chest Press", 100)],
+        ["b", best("Chest Press", 80)],
+      ]),
+      [
+        exercise("a", "Chest Press"),
+        exercise("b", "Chest Press", { equipment: "dumbbell" }),
+      ],
+    );
+
+    expect(groups[0].bests.map((row) => row.qualifier)).toEqual(["barbell", "dumbbell"]);
   });
 
   it("prefers the library name so a rename shows immediately", () => {

@@ -32,12 +32,13 @@ export async function createExerciseAction(
   try {
     await createExercise(parsed.data);
   } catch (error) {
-    // Duplicate key means the exercise name already exists in the library
+    // Duplicate key means this exact name/equipment/brand combination exists;
+    // the same name on different equipment is allowed
     if (isDuplicateKeyError(error)) {
       return {
         status: "error",
-        message: "An exercise with that name already exists",
-        fieldErrors: { name: "Already in your library" },
+        message: "That exercise already exists with the same equipment",
+        fieldErrors: { name: "Already in your library with this equipment" },
       };
     }
 
@@ -47,7 +48,7 @@ export async function createExerciseAction(
 
   revalidatePath("/exercises");
   revalidatePath("/workouts/new");
-  return { status: "idle" };
+  return { status: "success", message: `Added ${parsed.data.name}` };
 }
 
 export async function updateExerciseAction(
@@ -86,8 +87,8 @@ export async function updateExerciseAction(
     if (isDuplicateKeyError(error)) {
       return {
         status: "error",
-        message: "Another exercise already has that name",
-        fieldErrors: { name: "Already in your library" },
+        message: "Another exercise already has that name and equipment",
+        fieldErrors: { name: "Already in your library with this equipment" },
       };
     }
 
@@ -97,20 +98,22 @@ export async function updateExerciseAction(
 
   revalidatePath("/exercises");
   revalidatePath("/workouts/new");
-  return { status: "idle" };
+  return { status: "success", message: `Saved ${parsed.data.name}` };
 }
 
-export async function deleteExerciseAction(formData: FormData): Promise<void> {
+export async function deleteExerciseAction(formData: FormData): Promise<ActionState> {
   const id = String(formData.get("id") ?? "");
-  if (!id) return;
+  if (!id) return { status: "error", message: "Missing exercise id" };
 
   try {
-    await deleteExercise(id);
+    const deleted = await deleteExercise(id);
+    if (!deleted) return { status: "error", message: "That exercise no longer exists" };
   } catch (error) {
     console.error("deleteExerciseAction failed", error);
-    return;
+    return { status: "error", message: "Could not remove the exercise. Is MongoDB running?" };
   }
 
   revalidatePath("/exercises");
   revalidatePath("/workouts/new");
+  return { status: "success", message: "Exercise removed" };
 }

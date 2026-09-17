@@ -16,6 +16,7 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "seed": "tsx --env-file=.env.local scripts/seed.ts",
+    "db:sync-indexes": "tsx --env-file=.env.local scripts/sync-indexes.ts",
     "db:up": "docker compose up -d",
     "db:down": "docker compose down"
   },

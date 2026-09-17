@@ -30,6 +30,7 @@ Without a reachable database every page renders a `ConnectionError` banner inste
 | `npm test` | Vitest, all unit tests |
 | `npm run test:coverage` | Enforces 80% thresholds on `src/domain`, `src/server/forms`, `src/server/api` |
 | `npm run seed` | Reseeds the database (destructive) |
+| `npm run db:sync-indexes` | Rebuilds indexes and drops superseded ones; run after any index change |
 
 Run a single test file or case:
 
@@ -62,6 +63,10 @@ These caused real bugs during the initial build. Preserve them.
 
 **`"use server"` files may only export async functions.** `ActionState` and `initialActionState` live in `src/server/actions/state.ts` rather than alongside the actions for exactly this reason. Do not move them back.
 
+**Actions return a destination instead of calling `redirect()`.** Every mutation ends in a toast (`src/components/toast.tsx`, provider mounted in the root layout), and `useActionToast` raises it from the `"success"` state the action returns. A server-side `redirect()` never produces that state — it unmounts the form before anything lands — so `createWorkoutAction` and `updateWorkoutAction` return `redirectTo` and `workout-form.tsx` navigates with `router.push`. Re-adding `redirect()` silently removes the toast. The toast survives the navigation only because the provider sits above `children` in the layout and is never remounted.
+
+Deletes have no form to render an error into, so their action returns an `ActionState` too and `DeleteButton` toasts it. A new mutation needs the same treatment or it will succeed with no feedback at all.
+
 **The workout form has a field-name contract.** `workout-form.tsx` posts flat indexed names (`entries.0.sets.2.reps`) because set counts are dynamic; `src/server/forms/workout-form.ts` parses them back into nested objects with regexes. Renaming a field in the component silently drops data unless the regexes change too. `workout-form.test.ts` pins this contract, including sparse indices left by client-side row removal.
 
 **Calendar dates are computed in UTC, end to end.** `performedAt` is a UTC instant and form submissions land on UTC midnight, so `src/domain/calendar.ts` does all its date math with `Date.UTC` and `getUTC*`, and `formatDate` pins `timeZone: "UTC"`. Mixing in local time puts a workout in a different cell than the date printed beside it for anyone not on UTC. `format.test.ts` is timezone-sensitive — run it under `TZ=America/Los_Angeles` as well as the default when touching date code.
@@ -84,7 +89,11 @@ The cost of that cache: **adding a field to a Mongoose schema requires restartin
 
 **There is no environment toggle in the code.** `readEnv()` reads `MONGODB_URI` and nothing else decides the target: `.env.local` holds the Docker URI, `.env.atlas.local` holds the Atlas SRV string, Render sets the variable in its dashboard. `npm run dev:atlas` pre-loads `.env.atlas.local` and relies on Next's load order, where a real environment variable outranks `.env.local`. It goes through `scripts/with-env.mjs` rather than `node --env-file=… next dev`, because `next dev` re-spawns itself with the parent's flags in `NODE_OPTIONS` and Node rejects `--env-file` there — the server boots and then dies. The wrapper calls `process.loadEnvFile` and spawns a plain child instead. `tsx --env-file` is unaffected, which is why the seed script still uses it. Do not add a `MONGODB_TARGET`-style switch — it would require every environment to hold both URIs, which is how a local `npm run seed` ends up pointed at production. `isLocalMongoUri` in `src/lib/env.ts` parses the URI with `URL` rather than matching a pattern, because `mongodb://localhost:pass@remote.example.com` puts a local-looking name in the credentials; `scripts/seed.ts` uses it to refuse a remote target without `--force`.
 
-**Exercise names are unique case-insensitively** via a collation index. Duplicates surface as Mongo error 11000 → 409 from the API, inline field error from the action.
+**Exercise names are unique per `(name, equipment, machineBrand)`**, case-insensitively, via a collation index. A name may repeat across equipment or brands — a barbell, a dumbbell and two machine "Chest Press" entries are four different lifts — but the same combination twice is rejected. Mongo indexes a missing `machineBrand` as null, so two unbranded barbell entries still collide. Duplicates surface as Mongo error 11000 → 409 from the API, inline field error from the action.
+
+Because a name alone no longer identifies an exercise, anywhere one is shown next to its siblings has to disambiguate it. `src/domain/exercise-label.ts` owns that rule: `exerciseLabel` qualifies a repeated name for pickers (the workout form's dropdown), and `qualifierFor` returns the muted suffix for lists that always show a brand (the personal-bests table, the workout detail page). A unique name renders exactly as before. The qualifier is display only — `exerciseName` posted by the form stays clean, for the same reason the `(removed)` marker does.
+
+**Changing an index needs `npm run db:sync-indexes`.** Mongoose's `autoIndex` only ever adds indexes, so the superseded one keeps enforcing its old rule — after the unique index moved off `name` alone, the stale `name_1` went on rejecting the duplicates the new index allows. `scripts/sync-indexes.ts` calls `syncIndexes()` on both models, which drops what the schemas no longer declare. It touches no documents, so unlike `npm run seed` it is safe to point at Atlas.
 
 ### Next.js 16 specifics
 

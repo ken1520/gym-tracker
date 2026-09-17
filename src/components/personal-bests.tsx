@@ -54,9 +54,9 @@ export function PersonalBests({ groups }: { groups: BestsGroup[] }) {
                   >
                     <td className="py-2">
                       {best.name}
-                      {best.machineBrand ? (
+                      {best.qualifier ? (
                         <span className="ml-2 text-xs text-neutral-500 dark:text-neutral-400">
-                          {best.machineBrand}
+                          {best.qualifier}
                         </span>
                       ) : null}
                     </td>

@@ -14,8 +14,16 @@ const exerciseSchema = new Schema(
   { timestamps: true },
 );
 
-// Prevents duplicate exercises in the library regardless of casing
-exerciseSchema.index({ name: 1 }, { unique: true, collation: { locale: "en", strength: 2 } });
+// A name may repeat across equipment or machine brands — a barbell and a
+// dumbbell "Chest Press" are different lifts — so the key is the whole triple
+// rather than the name alone. Mongo indexes a missing machineBrand as null, so
+// two unbranded barbell "Chest Press" entries still collide. Casing is ignored.
+// Changing this index needs `npm run db:sync-indexes`; Mongoose adds the new
+// index but never drops the old one
+exerciseSchema.index(
+  { name: 1, equipment: 1, machineBrand: 1 },
+  { unique: true, collation: { locale: "en", strength: 2 } },
+);
 
 export type ExerciseDoc = InferSchemaType<typeof exerciseSchema>;
 
