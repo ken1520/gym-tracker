@@ -1,18 +1,39 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { Card, PageHeader } from "@/components/ui";
+import { Card, ConnectionError, PageHeader } from "@/components/ui";
 import { formatDate, formatVolume, formatWeight } from "@/domain/format";
 import { qualifierFor, repeatedNames } from "@/domain/exercise-label";
 import { bestSet, entryVolume, estimatedOneRepMax, workoutVolume } from "@/domain/metrics";
+import { resolveWorkoutScope } from "@/domain/scope";
+import { requireViewer } from "@/server/auth/dal";
 import { findWorkout } from "@/server/repositories/workouts";
 import { listExercises } from "@/server/repositories/exercises";
 
 export default async function WorkoutDetailPage({ params }: PageProps<"/workouts/[id]">) {
+  const viewer = await requireViewer();
+  if (viewer.status === "unavailable") {
+    return (
+      <>
+        <PageHeader title="Workout" />
+        <ConnectionError message="Could not reach the database." />
+      </>
+    );
+  }
+
+  const { user } = viewer;
   const { id } = await params;
-  const workout = await findWorkout(id).catch(() => null);
+
+  // Admins may read any workout; everyone else only their own. A workout
+  // outside the scope is a 404, not a 403 — a 403 would confirm it exists
+  const scope = resolveWorkoutScope(user.role, user.id, "all");
+  const workout = await findWorkout(scope, id).catch(() => null);
 
   if (!workout) notFound();
+
+  // Reading someone else's log never comes with an edit button. The action
+  // rejects it too, so this is only about not offering a dead control
+  const isOwn = workout.userId === user.id;
 
   // Entries store only a denormalized name, which no longer identifies an
   // exercise on its own now that a name can repeat across equipment. The
@@ -28,12 +49,14 @@ export default async function WorkoutDetailPage({ params }: PageProps<"/workouts
         title={workout.title}
         description={`${formatDate(workout.performedAt)} · ${formatVolume(workoutVolume(workout))} total volume`}
         action={
-          <Link
-            href={`/workouts/${workout.id}/edit`}
-            className="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium transition-colors hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-900"
-          >
-            Edit
-          </Link>
+          isOwn ? (
+            <Link
+              href={`/workouts/${workout.id}/edit`}
+              className="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium transition-colors hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-900"
+            >
+              Edit
+            </Link>
+          ) : null
         }
       />
 

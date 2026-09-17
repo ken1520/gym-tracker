@@ -58,3 +58,24 @@ export function isLocalMongoUri(uri: string): boolean {
 
   return LOCAL_HOSTS.includes(parsed.hostname.toLowerCase());
 }
+
+// Read separately from MONGODB_URI, and just as lazily. Session signing and the
+// database fail for unrelated reasons, and folding them into one schema turns a
+// missing secret into an "Invalid environment configuration" about Mongo.
+//
+// Deliberately no built-in fallback: a default secret committed to the repo
+// would let anyone holding a copy of it mint a valid admin cookie
+const MIN_SECRET_LENGTH = 32;
+
+export function readSessionSecret(): string {
+  const secret = process.env.SESSION_SECRET ?? "";
+
+  if (secret.length < MIN_SECRET_LENGTH) {
+    throw new Error(
+      `SESSION_SECRET must be set to at least ${MIN_SECRET_LENGTH} characters. ` +
+        "Generate one with: openssl rand -base64 32",
+    );
+  }
+
+  return secret;
+}

@@ -25,19 +25,24 @@ export function WorkoutCalendar({
   summaries,
   selectedDay,
   todayKey,
+  scope,
 }: {
   monthKey: string;
   summaries: ReadonlyMap<string, DaySummary>;
   selectedDay?: string;
   todayKey: string;
+  // Only ever "all", and only for an admin. Every link below has to carry it or
+  // paging to the next month silently drops back to the viewer's own workouts
+  scope?: "all";
 }) {
   const grid = buildMonthGrid(monthKey);
+  const scopeParam = scope ? `&scope=${scope}` : "";
 
   return (
     <div className="rounded-lg border border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-950">
       <div className="mb-4 flex items-center justify-between">
         <Link
-          href={`/workouts?month=${shiftMonth(monthKey, -1)}`}
+          href={`/workouts?month=${shiftMonth(monthKey, -1)}${scopeParam}`}
           aria-label="Previous month"
           className="rounded-md px-3 py-1.5 text-sm text-neutral-600 transition-colors hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-neutral-900"
         >
@@ -45,7 +50,7 @@ export function WorkoutCalendar({
         </Link>
         <h2 className="text-sm font-semibold">{monthLabel(monthKey)}</h2>
         <Link
-          href={`/workouts?month=${shiftMonth(monthKey, 1)}`}
+          href={`/workouts?month=${shiftMonth(monthKey, 1)}${scopeParam}`}
           aria-label="Next month"
           className="rounded-md px-3 py-1.5 text-sm text-neutral-600 transition-colors hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-neutral-900"
         >
@@ -101,7 +106,7 @@ export function WorkoutCalendar({
           return (
             <Link
               key={day.dayKey}
-              href={`/workouts?month=${monthKey}&day=${day.dayKey}`}
+              href={`/workouts?month=${monthKey}&day=${day.dayKey}${scopeParam}`}
               aria-label={`${day.dayOfMonth}: ${summary.workoutCount} ${summary.workoutCount === 1 ? "workout" : "workouts"}`}
               className={`${base} font-medium ${INTENSITY_CLASS[summary.intensity]}${ring}`}
             >

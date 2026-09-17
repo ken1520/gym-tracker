@@ -15,6 +15,9 @@ import type { Workout } from "@/domain/types";
 
 const workout = (id: string, performedAt: string, weightKg = 100): Workout => ({
   id,
+  // Metrics never look at the owner — every workout reaching them is already
+  // scoped by the repository — but the type requires one
+  userId: "u1",
   performedAt,
   title: "Session",
   entries: [
@@ -199,6 +202,7 @@ describe("summarizeDays", () => {
   it("still marks a logged day when every set was a warmup", () => {
     const warmupOnly: Workout = {
       id: "w",
+      userId: "u1",
       performedAt: "2026-08-10T00:00:00.000Z",
       title: "Deload",
       entries: [

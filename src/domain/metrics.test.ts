@@ -19,6 +19,9 @@ const set = (weightKg: number, reps: number, isWarmup = false): WorkoutSet => ({
 
 const workout = (id: string, entries: Workout["entries"]): Workout => ({
   id,
+  // Metrics never look at the owner — every workout reaching them is already
+  // scoped by the repository — but the type requires one
+  userId: "u1",
   performedAt: "2026-08-01T00:00:00.000Z",
   title: "Session",
   entries,

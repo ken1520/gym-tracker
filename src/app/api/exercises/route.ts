@@ -4,8 +4,14 @@ import { exerciseInputSchema, toFieldErrors } from "@/domain/schemas";
 import { createExercise, listExercises } from "@/server/repositories/exercises";
 import { apiError, apiSuccess } from "@/server/api/response";
 import { isDuplicateKeyError } from "@/server/api/errors";
+import { authorizeRequest } from "@/server/api/guards";
+import { canManageExercises } from "@/domain/roles";
 
 export async function GET() {
+  // The library is readable by every signed-in account, not by the public
+  const auth = await authorizeRequest();
+  if (!auth.ok) return auth.response;
+
   try {
     const exercises = await listExercises();
     return NextResponse.json(apiSuccess(exercises));
@@ -16,6 +22,9 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const auth = await authorizeRequest(canManageExercises);
+  if (!auth.ok) return auth.response;
+
   let body: unknown;
   try {
     body = await request.json();

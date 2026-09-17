@@ -10,7 +10,9 @@ services:
     plan: free
     buildCommand: npm ci && npm run build
     startCommand: npm run start
-    healthCheckPath: /
+    # /login rather than /: every other route redirects there without a
+    # session, and a health check should not depend on being signed in
+    healthCheckPath: /login
     envVars:
       # Matches .node-version; the toolchain does not run on Node 18 or 20
       - key: NODE_VERSION
@@ -21,3 +23,8 @@ services:
         sync: false
       - key: MONGODB_DB
         value: gym_tracker
+      # Signs the session cookie. generateValue has Render mint a random value
+      # on first deploy, so the secret never exists in this file or in a
+      # terminal. Changing it later signs every account out
+      - key: SESSION_SECRET
+        generateValue: true

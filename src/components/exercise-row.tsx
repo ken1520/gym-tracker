@@ -9,14 +9,22 @@ import { deleteExerciseAction, updateExerciseAction } from "@/server/actions/exe
 import { initialActionState } from "@/server/actions/state";
 import type { Exercise } from "@/domain/types";
 
-export function ExerciseRow({ exercise }: { exercise: Exercise }) {
+// canEdit only decides whether the controls render — the actions behind them
+// check the role themselves, since a Server Action is a public POST endpoint
+export function ExerciseRow({
+  exercise,
+  canEdit,
+}: {
+  exercise: Exercise;
+  canEdit: boolean;
+}) {
   const [editing, setEditing] = useState(false);
   const [state, action, pending] = useActionState(updateExerciseAction, initialActionState);
 
   // Close the editor once the save actually lands, alongside its toast
   useActionToast(state, () => setEditing(false));
 
-  if (!editing) {
+  if (!editing || !canEdit) {
     return (
       <li className="flex items-center justify-between gap-4 py-2 first:pt-0 last:pb-0">
         <div className="min-w-0">
@@ -26,16 +34,18 @@ export function ExerciseRow({ exercise }: { exercise: Exercise }) {
             {exercise.machineBrand ? ` · ${exercise.machineBrand}` : ""}
           </p>
         </div>
-        <div className="flex shrink-0 items-center gap-1">
-          <button
-            type="button"
-            onClick={() => setEditing(true)}
-            className="rounded-md px-2 py-1 text-sm text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-neutral-900 dark:hover:bg-neutral-900 dark:hover:text-neutral-100"
-          >
-            Edit
-          </button>
-          <DeleteButton id={exercise.id} action={deleteExerciseAction} label="Remove" />
-        </div>
+        {canEdit ? (
+          <div className="flex shrink-0 items-center gap-1">
+            <button
+              type="button"
+              onClick={() => setEditing(true)}
+              className="rounded-md px-2 py-1 text-sm text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-neutral-900 dark:hover:bg-neutral-900 dark:hover:text-neutral-100"
+            >
+              Edit
+            </button>
+            <DeleteButton id={exercise.id} action={deleteExerciseAction} label="Remove" />
+          </div>
+        ) : null}
       </li>
     );
   }

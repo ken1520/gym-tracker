@@ -1,11 +1,24 @@
-// Populates a starter exercise library and one sample workout
+// Populates a starter exercise library, a demo admin, and one sample workout
 // Run with: npm run seed
 import mongoose from "mongoose";
 
 import { isLocalMongoUri, readEnv } from "../src/lib/env";
 import { ExerciseModel } from "../src/models/exercise";
 import { WorkoutModel } from "../src/models/workout";
+import { UserModel } from "../src/models/user";
+import { hashPassword } from "../src/server/auth/password";
 import type { Equipment, MuscleGroup } from "../src/domain/constants";
+
+// A known-weak password on purpose: this only ever runs against a local
+// database (the guard below refuses anything else without --force), and a
+// memorable one beats copy-pasting a generated string into the login form.
+// Change it from /account the moment this database stops being a scratch one
+const DEMO_ADMIN = {
+  email: "admin@example.com",
+  name: "Admin",
+  role: "admin" as const,
+  password: "changeme123",
+};
 
 const STARTER_EXERCISES: {
   name: string;
@@ -32,12 +45,13 @@ function redactUri(uri: string): string {
 async function seed(): Promise<void> {
   const env = readEnv();
 
-  // Seeding wipes both collections. Against Atlas that is real training history,
-  // so a remote target has to be confirmed rather than reached by a stray script
+  // Seeding wipes all three collections, accounts included. Against Atlas that
+  // is real training history, so a remote target has to be confirmed rather
+  // than reached by a stray script
   if (!isLocalMongoUri(env.MONGODB_URI) && !process.argv.includes("--force")) {
     throw new Error(
       `Refusing to seed a non-local database (${redactUri(env.MONGODB_URI)}). ` +
-        "Seeding deletes every exercise and workout. Re-run with --force if that is what you want.",
+        "Seeding deletes every exercise, workout and account. Re-run with --force if that is what you want.",
     );
   }
 
@@ -45,6 +59,24 @@ async function seed(): Promise<void> {
 
   await ExerciseModel.deleteMany({});
   await WorkoutModel.deleteMany({});
+  await UserModel.deleteMany({});
+
+  // Indexes are built explicitly: on a fresh database the unique email index
+  // may not exist yet, and a scoped workout query needs { userId, performedAt }
+  await Promise.all([
+    ExerciseModel.syncIndexes(),
+    WorkoutModel.syncIndexes(),
+    UserModel.syncIndexes(),
+  ]);
+
+  // Workouts are scoped to an owner, so the sample one needs an account to
+  // belong to or nothing in the app would ever show it
+  const admin = await UserModel.create({
+    email: DEMO_ADMIN.email,
+    name: DEMO_ADMIN.name,
+    role: DEMO_ADMIN.role,
+    passwordHash: await hashPassword(DEMO_ADMIN.password),
+  });
 
   const exercises = await ExerciseModel.insertMany(STARTER_EXERCISES);
   const byName = new Map(exercises.map((exercise) => [exercise.name, exercise]));
@@ -54,6 +86,7 @@ async function seed(): Promise<void> {
   if (!squat || !bench) throw new Error("Seed exercises missing");
 
   await WorkoutModel.create({
+    userId: admin._id,
     performedAt: new Date(),
     title: "Lower + Push",
     notes: "Felt strong, bar speed good on the last set",
@@ -81,6 +114,7 @@ async function seed(): Promise<void> {
   });
 
   console.log(`Seeded ${exercises.length} exercises and 1 workout`);
+  console.log(`Sign in as ${DEMO_ADMIN.email} / ${DEMO_ADMIN.password}`);
   await mongoose.disconnect();
 }
 

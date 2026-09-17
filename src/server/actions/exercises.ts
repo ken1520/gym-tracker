@@ -3,14 +3,21 @@
 import { revalidatePath } from "next/cache";
 
 import { exerciseInputSchema, toFieldErrors } from "@/domain/schemas";
+import { canManageExercises } from "@/domain/roles";
 import { createExercise, deleteExercise, updateExercise } from "@/server/repositories/exercises";
 import type { ActionState } from "@/server/actions/state";
+import { authorizeAction } from "@/server/auth/guards";
 import { isDuplicateKeyError } from "@/server/api/errors";
 
 export async function createExerciseAction(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
+  // The library is shared by every account, so only an admin may touch it.
+  // Hiding the UI is not the check — an action is a public POST endpoint
+  const auth = await authorizeAction(canManageExercises);
+  if (!auth.ok) return auth.state;
+
   const notes = String(formData.get("notes") ?? "").trim();
   const parsed = exerciseInputSchema.safeParse({
     name: formData.get("name"),
@@ -55,6 +62,11 @@ export async function updateExerciseAction(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
+  // The library is shared by every account, so only an admin may touch it.
+  // Hiding the UI is not the check — an action is a public POST endpoint
+  const auth = await authorizeAction(canManageExercises);
+  if (!auth.ok) return auth.state;
+
   const id = String(formData.get("id") ?? "");
   if (!id) return { status: "error", message: "Missing exercise id" };
 
@@ -102,6 +114,11 @@ export async function updateExerciseAction(
 }
 
 export async function deleteExerciseAction(formData: FormData): Promise<ActionState> {
+  // The library is shared by every account, so only an admin may touch it.
+  // Hiding the UI is not the check — an action is a public POST endpoint
+  const auth = await authorizeAction(canManageExercises);
+  if (!auth.ok) return auth.state;
+
   const id = String(formData.get("id") ?? "");
   if (!id) return { status: "error", message: "Missing exercise id" };
 

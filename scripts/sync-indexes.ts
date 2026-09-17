@@ -4,12 +4,14 @@
 // Needed because Mongoose's autoIndex only ever ADDS indexes. The unique index
 // on exercises moved from { name } to { name, equipment, machineBrand }, and
 // until the old one is dropped it keeps rejecting the duplicates the new one
-// allows.
+// allows. Workouts gained { userId, performedAt } when accounts arrived, and
+// users need their unique email index built before the first sign-up.
 import mongoose from "mongoose";
 
 import { readEnv } from "../src/lib/env";
 import { ExerciseModel } from "../src/models/exercise";
 import { WorkoutModel } from "../src/models/workout";
+import { UserModel } from "../src/models/user";
 
 // An Atlas URI carries a password, and this message goes to a terminal
 function redactUri(uri: string): string {
@@ -24,7 +26,7 @@ async function syncIndexes(): Promise<void> {
   console.log(`Syncing indexes on ${redactUri(env.MONGODB_URI)}`);
   await mongoose.connect(env.MONGODB_URI, { dbName: env.MONGODB_DB });
 
-  for (const model of [ExerciseModel, WorkoutModel]) {
+  for (const model of [ExerciseModel, WorkoutModel, UserModel]) {
     // syncIndexes returns the names it dropped, which is the interesting half
     const dropped = await model.syncIndexes();
     console.log(

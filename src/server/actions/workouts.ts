@@ -5,12 +5,17 @@ import { revalidatePath } from "next/cache";
 import { toFieldErrors, workoutInputSchema } from "@/domain/schemas";
 import { createWorkout, deleteWorkout, updateWorkout } from "@/server/repositories/workouts";
 import { parseWorkoutForm } from "@/server/forms/workout-form";
+import { authorizeAction } from "@/server/auth/guards";
 import type { ActionState } from "@/server/actions/state";
 
 export async function createWorkoutAction(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
+  // Signed in is enough — every role logs its own workouts
+  const auth = await authorizeAction();
+  if (!auth.ok) return auth.state;
+
   const parsed = workoutInputSchema.safeParse(parseWorkoutForm(formData));
 
   if (!parsed.success) {
@@ -22,7 +27,7 @@ export async function createWorkoutAction(
   }
 
   try {
-    await createWorkout(parsed.data);
+    await createWorkout(auth.user.id, parsed.data);
   } catch (error) {
     console.error("createWorkoutAction failed", error);
     return { status: "error", message: "Could not save the workout. Is MongoDB running?" };
@@ -37,6 +42,10 @@ export async function updateWorkoutAction(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
+  // Signed in is enough — every role logs its own workouts
+  const auth = await authorizeAction();
+  if (!auth.ok) return auth.state;
+
   const id = String(formData.get("id") ?? "");
   if (!id) return { status: "error", message: "Missing workout id" };
 
@@ -51,8 +60,9 @@ export async function updateWorkoutAction(
   }
 
   try {
-    const updated = await updateWorkout(id, parsed.data);
+    const updated = await updateWorkout(auth.user.id, id, parsed.data);
     if (!updated) {
+      // A workout belonging to someone else matches nothing, so it reads as gone
       return { status: "error", message: "That workout no longer exists" };
     }
   } catch (error) {
@@ -67,11 +77,15 @@ export async function updateWorkoutAction(
 }
 
 export async function deleteWorkoutAction(formData: FormData): Promise<ActionState> {
+  // Signed in is enough — every role logs its own workouts
+  const auth = await authorizeAction();
+  if (!auth.ok) return auth.state;
+
   const id = String(formData.get("id") ?? "");
   if (!id) return { status: "error", message: "Missing workout id" };
 
   try {
-    const deleted = await deleteWorkout(id);
+    const deleted = await deleteWorkout(auth.user.id, id);
     if (!deleted) return { status: "error", message: "That workout no longer exists" };
   } catch (error) {
     console.error("deleteWorkoutAction failed", error);

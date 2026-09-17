@@ -13,9 +13,15 @@ Node 22 is required — `nvm use 22` before any npm command. Node 18/20 are inst
 ```bash
 docker compose up -d      # MongoDB 8 on :27017 (npm run db:up)
 cp .env.example .env.local
-npm run seed              # starter exercise library + one sample workout, wipes both collections first
-npm run dev
+# SESSION_SECRET has no fallback — set it or every request throws
+openssl rand -base64 32   # paste into SESSION_SECRET in .env.local
+npm run seed              # starter library, a demo admin, one sample workout; wipes all three collections
+npm run dev               # sign in as admin@example.com / changeme123
 ```
+
+There is no public sign-up. On a database the seed has not touched, the first
+admin comes from `npm run user:create -- --email you@example.com --name 'Your
+Name' --role admin`; everyone else is created from `/users` in the app.
 
 Without a reachable database every page renders a `ConnectionError` banner instead of crashing — that banner means Mongo is down, not that the page is broken. Port 3000 is often taken on this machine; check the dev server output for the real port.
 
@@ -30,6 +36,8 @@ Without a reachable database every page renders a `ConnectionError` banner inste
 | `npm test` | Vitest, all unit tests |
 | `npm run test:coverage` | Enforces 80% thresholds on `src/domain`, `src/server/forms`, `src/server/api` |
 | `npm run seed` | Reseeds the database (destructive) |
+| `npm run user:create` | Creates an account from the CLI; the only way to make the first admin |
+| `npm run db:backfill-owner` | One-off: assigns pre-accounts workouts to an owner |
 | `npm run db:sync-indexes` | Rebuilds indexes and drops superseded ones; run after any index change |
 
 Run a single test file or case:
@@ -46,14 +54,46 @@ Vitest config lives in `vitest.config.mts` — the `.mts` extension is deliberat
 Three layers, strictly one-directional (`app` → `server` → `domain`):
 
 - **`src/domain/`** — pure, dependency-free. Types, Zod schemas, metric math, formatting. No database or React imports, which is why it carries essentially all the test coverage.
-- **`src/server/`** — everything touching the database or the request. Repositories, Server Actions, form parsing, the API envelope. Every repository imports `server-only`.
+- **`src/server/`** — everything touching the database or the request. Repositories, Server Actions, form parsing, the API envelope, and `src/server/auth/` (sessions, password hashing, the authorization guards). Every repository imports `server-only`.
 - **`src/app/`**, **`src/components/`** — routes and UI. Pages are Server Components that call repositories directly; `workout-form.tsx`, `exercise-form.tsx` and `exercise-row.tsx` are the `"use client"` entry points. `exercise-fields.tsx` is shared by the create form and the row editor and deliberately carries no directive — it joins its importers' bundle, which is what lets it take a plain `onCancel` callback instead of only serializable props.
 
 `src/models/` holds Mongoose schemas, imported only by repositories and the seed script.
 
+### Authentication and roles
+
+Accounts are email + password, with a signed session cookie. There is no
+sign-up route: the first admin comes from `npm run user:create`, everyone else
+from `/users`. Two roles, defined in `src/domain/roles.ts`:
+
+- **user** — logs, edits and deletes only their own workouts; reads the shared exercise library
+- **admin** — all of that, plus CRUD on exercises, CRUD on accounts, and a read-only view of every account's workouts
+
+Four layers enforce it, and only the first is cosmetic:
+
+1. `src/proxy.ts` redirects a request with no valid cookie to `/login`. It only checks the signature — Proxy runs on every request including prefetches, so it must not touch the database.
+2. `requireViewer()` in `src/server/auth/dal.ts` gates pages.
+3. `authorizeAction()` (`src/server/auth/guards.ts`) gates every Server Action; `authorizeRequest()` (`src/server/api/guards.ts`) gates every API route.
+4. Repository queries are scoped by owner, so even a missed guard returns nothing.
+
+Hiding a button is never the check. **A Server Action is a public POST endpoint** — `canEdit` props only decide whether a control renders, and every action re-checks the role itself.
+
+**The cookie's role is trusted only as of issue time.** `getCurrentUser()` re-reads the account from the database on every request, which is what makes a demotion or a deleted account take effect immediately instead of whenever the cookie expires. React's `cache()` collapses that to one query per render pass. The cookie also carries `sessionVersion`, which `setUserPassword` increments — that is what signs every other device out on a password change. A role check that reads the cookie alone would be stale; don't add one.
+
+**`requireViewer()` must be called outside a page's `try`/`catch`.** It redirects by throwing, and the bare `catch` every page uses for its `ConnectionError` banner would swallow the redirect and render the page for a signed-out visitor. That is also why it returns `{ status: "unavailable" }` for a database failure rather than redirecting — a stopped container must reach the banner, not bounce through `/login` forever.
+
+**Reads take a `WorkoutScope`; writes take a `userId`.** `src/domain/scope.ts` defines the scope as a discriminated union rather than a nullable userId, so "every account's data" can only be reached by asking for it by name — a forgotten argument cannot silently widen a query. `resolveWorkoutScope` takes the requested scope straight from the URL and quietly ignores `all` for a non-admin. Writes have no `all` variant at all: `updateWorkout`/`deleteWorkout` match on `{ _id, userId }`, so an admin editing someone else's workout gets the same null as a deleted one. Admin read-across is exposed only on `/workouts?scope=all` and the detail page; the dashboard is always personal.
+
+**Out-of-scope is a 404, never a 403.** A 403 confirms the id exists, which leaks whose workouts are whose. `/users` does the same for a non-admin — `forbidden()` is still behind the experimental `authInterrupts` flag, so it is `notFound()`.
+
+**Passwords use `node:crypto` scrypt** (`src/server/auth/password.ts`), not bcrypt/argon2, so there is no native binding to rebuild per deploy target. Each hash stores its own `N`/`r`/`p`, so raising the work factor later does not invalidate existing passwords. `N` is also the memory cost, and 2^15 needs `maxmem` raised above Node's 32 MB default or the call throws. Login hashes against `DUMMY_PASSWORD_HASH` when the email is unknown, so response time does not reveal which emails have accounts.
+
+**`SESSION_SECRET` has no fallback.** A default committed to the repo would let anyone holding a copy mint an admin cookie. `readSessionSecret()` is separate from `readEnv()` so a missing secret does not surface as a MongoDB error. Rotating it signs everyone out.
+
+**A "use client" file cannot flip a button between `type="button"` and `type="submit"`.** React flushes a state update from a discrete event synchronously, so the button already reads `submit` by the time the browser resolves the click's default action — the first click submits instead of arming. `DeleteButton`'s two-step confirm therefore keeps the button permanently `type="submit"` and returns early inside the form `action`.
+
 ### Mutations happen twice, deliberately
 
-The UI uses **Server Actions** (`src/server/actions/`), and `src/app/api/` exposes a parallel **REST API** for non-UI clients. Both paths validate with the same Zod schemas from `src/domain/schemas.ts` and share `isDuplicateKeyError`. Changing validation rules means changing one schema, but verify both paths still behave — they report errors differently (action returns `ActionState`, route returns the `apiSuccess`/`apiError` envelope).
+The UI uses **Server Actions** (`src/server/actions/`), and `src/app/api/` exposes a parallel **REST API** for non-UI clients. Both paths validate with the same Zod schemas from `src/domain/schemas.ts` and share `isDuplicateKeyError`. Changing validation rules means changing one schema, but verify both paths still behave — they report errors differently (action returns `ActionState`, route returns the `apiSuccess`/`apiError` envelope). They authorize differently too, for the same reason: `authorizeAction` returns an `ActionState`, `authorizeRequest` returns a `NextResponse`. A new mutation needs a guard on **both** paths.
 
 ### Non-obvious constraints
 
@@ -93,7 +133,9 @@ The cost of that cache: **adding a field to a Mongoose schema requires restartin
 
 Because a name alone no longer identifies an exercise, anywhere one is shown next to its siblings has to disambiguate it. `src/domain/exercise-label.ts` owns the qualifier — `exerciseQualifier` returns the machine brand, or the equipment when there is no brand — and two call sites apply it differently. The workout form's dropdown qualifies **every** option, so picking a lift never depends on remembering which one a bare name means. The personal-bests table and workout detail page use `qualifierFor`, which is conditional: always a brand for machines, the equipment only once a name repeats. The qualifier is display only — `exerciseName` posted by the form stays clean, for the same reason the `(removed)` marker does.
 
-**Changing an index needs `npm run db:sync-indexes`.** Mongoose's `autoIndex` only ever adds indexes, so the superseded one keeps enforcing its old rule — after the unique index moved off `name` alone, the stale `name_1` went on rejecting the duplicates the new index allows. `scripts/sync-indexes.ts` calls `syncIndexes()` on both models, which drops what the schemas no longer declare. It touches no documents, so unlike `npm run seed` it is safe to point at Atlas.
+**Workouts are owned, and the index leads with the owner.** `userId` is required on the schema, so a document invisible to every scoped query can never be written. Workouts logged before accounts existed have no `userId` and are invisible to everyone — `npm run db:backfill-owner -- --email you@example.com` assigns them, and is safe to re-run because it only touches documents with no owner.
+
+**Changing an index needs `npm run db:sync-indexes`.** Mongoose's `autoIndex` only ever adds indexes, so the superseded one keeps enforcing its old rule — after the unique index moved off `name` alone, the stale `name_1` went on rejecting the duplicates the new index allows. `scripts/sync-indexes.ts` calls `syncIndexes()` on all three models, which drops what the schemas no longer declare. It touches no documents, so unlike `npm run seed` it is safe to point at Atlas.
 
 ### Next.js 16 specifics
 

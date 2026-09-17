@@ -4,6 +4,8 @@ import { exerciseInputSchema, toFieldErrors } from "@/domain/schemas";
 import { updateExercise } from "@/server/repositories/exercises";
 import { apiError, apiSuccess } from "@/server/api/response";
 import { isDuplicateKeyError } from "@/server/api/errors";
+import { authorizeRequest } from "@/server/api/guards";
+import { canManageExercises } from "@/domain/roles";
 
 // Route params are async in Next.js 16
 type RouteContext = { params: Promise<{ id: string }> };
@@ -11,6 +13,9 @@ type RouteContext = { params: Promise<{ id: string }> };
 // PUT rather than PATCH: the schema requires every field, so a save replaces the
 // whole exercise. That is also what lets a brand or note be cleared.
 export async function PUT(request: Request, { params }: RouteContext) {
+  const auth = await authorizeRequest(canManageExercises);
+  if (!auth.ok) return auth.response;
+
   const { id } = await params;
 
   let body: unknown;

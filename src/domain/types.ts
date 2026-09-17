@@ -1,4 +1,5 @@
 import type { Equipment, MachineBrand, MuscleGroup } from "@/domain/constants";
+import type { Role } from "@/domain/roles";
 
 // Plain serializable shapes passed from Server Components to the client
 export type WorkoutSet = {
@@ -17,6 +18,9 @@ export type WorkoutEntry = {
 
 export type Workout = {
   id: string;
+  // The account that logged it. Present on the client so an admin viewing every
+  // account's history can label rows and hide edit controls on other people's
+  userId: string;
   performedAt: string;
   title: string;
   notes?: string;
@@ -31,4 +35,21 @@ export type Exercise = {
   // Optional, and only ever set when equipment is "machine"
   machineBrand?: MachineBrand;
   notes?: string;
+};
+
+// Never carries passwordHash — this is the shape that crosses into the UI
+export type User = {
+  id: string;
+  email: string;
+  name: string;
+  role: Role;
+  createdAt: string;
+};
+
+// The subset kept in the session cookie and handed to client components
+export type SessionUser = {
+  id: string;
+  email: string;
+  name: string;
+  role: Role;
 };
