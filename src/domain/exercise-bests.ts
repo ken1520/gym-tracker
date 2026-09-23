@@ -1,14 +1,10 @@
-import { MUSCLE_GROUPS } from "@/domain/constants";
-import type { MuscleGroup } from "@/domain/constants";
 import { qualifierFor, repeatedNames } from "@/domain/exercise-label";
+import { UNGROUPED, groupByMuscle } from "@/domain/muscle-groups";
+import type { MuscleGroupKey } from "@/domain/muscle-groups";
+import { nextTarget } from "@/domain/overload";
+import type { NextTarget } from "@/domain/overload";
 import type { PersonalBest } from "@/domain/metrics";
 import type { Exercise, WorkoutSet } from "@/domain/types";
-
-// A workout entry keeps only a denormalized exercise name, so a best set whose
-// exercise has since been deleted has no muscle group left to file it under
-export const UNGROUPED = "ungrouped";
-
-export type BestsGroupKey = MuscleGroup | typeof UNGROUPED;
 
 export type ExerciseBest = {
   exerciseId: string;
@@ -18,16 +14,14 @@ export type ExerciseBest = {
   qualifier?: string;
   set: WorkoutSet;
   oneRepMax: number;
+  // What to aim for next, from the same set the estimate came from
+  next: NextTarget;
 };
 
 export type BestsGroup = {
-  key: BestsGroupKey;
+  key: MuscleGroupKey;
   bests: ExerciseBest[];
 };
-
-// Muscle groups keep their declared order, which reads better than alphabetical;
-// anything unmatched lands at the end
-const GROUP_ORDER: readonly BestsGroupKey[] = [...MUSCLE_GROUPS, UNGROUPED];
 
 // Strongest first, then by name so equal estimates keep a stable order.
 // The locale is pinned for the same reason the formatters pin theirs
@@ -35,8 +29,8 @@ function byStrengthThenName(a: ExerciseBest, b: ExerciseBest): number {
   return b.oneRepMax - a.oneRepMax || a.name.localeCompare(b.name, "en-GB");
 }
 
-// Joins personal bests to the exercise library to recover the muscle group and
-// machine brand, which workouts do not store
+// Joins personal bests to the exercise library to recover the muscle group,
+// machine brand and equipment, none of which workouts store
 export function groupBestsByMuscle(
   bests: ReadonlyMap<string, PersonalBest>,
   exercises: readonly Exercise[],
@@ -45,9 +39,8 @@ export function groupBestsByMuscle(
   // Repetition is judged against the whole library, so the same exercise is
   // qualified here and in the workout form's dropdown or in neither
   const repeated = repeatedNames(exercises);
-  const grouped = new Map<BestsGroupKey, ExerciseBest[]>();
 
-  for (const [exerciseId, best] of bests) {
+  const rows = [...bests].map(([exerciseId, best]) => {
     const exercise = library.get(exerciseId);
     const qualifier = qualifierFor(exercise, repeated);
 
@@ -59,16 +52,14 @@ export function groupBestsByMuscle(
       ...(qualifier ? { qualifier } : {}),
       set: best.set,
       oneRepMax: best.oneRepMax,
+      next: nextTarget(best.set, exercise?.equipment),
     };
 
-    const key = exercise?.muscleGroup ?? UNGROUPED;
-    const rows = grouped.get(key);
-    if (rows) rows.push(row);
-    else grouped.set(key, [row]);
-  }
-
-  return GROUP_ORDER.flatMap((key) => {
-    const rows = grouped.get(key);
-    return rows ? [{ key, bests: [...rows].sort(byStrengthThenName) }] : [];
+    return [exercise?.muscleGroup ?? UNGROUPED, row] as const;
   });
+
+  return groupByMuscle(rows).map((group) => ({
+    key: group.key,
+    bests: [...group.rows].sort(byStrengthThenName),
+  }));
 }

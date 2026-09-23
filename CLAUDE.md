@@ -117,7 +117,7 @@ Deletes have no form to render an error into, so their action returns an `Action
 
 Because entries are replaced wholesale, anything the form does not post is lost on save. That is why `workout-form.tsx` keeps a hidden input for each set's `rpe` (no UI collects it) and `exercise-fields.tsx` does the same for exercise `notes`. Adding a stored field that the form does not render means adding another such carrier.
 
-**Editing a workout must survive a deleted exercise.** `buildOptions` in `workout-form.tsx` merges the library with any `exerciseId` the workout references but the library no longer has, so the entry stays selectable. The option's `label` carries the `(removed)` marker and its `name` stays clean — the form posts `name`, so collapsing the two would write the marker into `exerciseName`.
+**Editing a workout must survive a deleted exercise.** `buildExerciseOptions` in `src/domain/exercise-options.ts` merges the library with any `exerciseId` the workout references but the library no longer has, so the entry stays selectable. Those ids have no muscle group left, so they land in a trailing `ungrouped` optgroup. The option's `label` carries the `(removed)` marker and its `name` stays clean — the form posts `name`, so collapsing the two would write the marker into `exerciseName`.
 
 **Warmup sets are excluded from every metric.** Volume, set counts, best set, and PRs all filter on `isWarmup`. New metrics must do the same.
 
@@ -149,4 +149,8 @@ Read `node_modules/next/dist/docs/` before using an unfamiliar API — this vers
 
 **Kilograms are the only unit, for both storage and display.** Weights are stored as `weightKg`, and `formatWeight` / `formatVolume` in `src/domain/format.ts` always render `kg` — large totals get grouped thousands (`48,250 kg`), never a tonne abbreviation. There is no unit conversion layer, and no display unit should be introduced without changing this line. Both formatters pin the locale to `en-GB` so server and client render identically and hydration stays clean.
 
-Estimated 1RM uses the Epley formula in `src/domain/metrics.ts`. Numeric limits (max weight, max reps, RPE range) are centralized in `src/domain/constants.ts` and enforced in both the Zod schemas and the Mongoose schemas.
+Estimated 1RM uses the Epley formula in `src/domain/metrics.ts`. The next-target projection beside it (`src/domain/overload.ts`) overloads on load alone: the best set's reps are the lifter's own scheme and carry over untouched, while the weight goes up ~2.5%, rounded up to a notch the equipment actually has — a dumbbell rack and a plate-loaded machine do not move in the same increments. The snap wins over the percentage, so a set logged off the grid still projects onto it rather than naming a weight nobody can load. It never returns the weight it was given, so a target is always a target.
+
+Muscle-group ordering lives in `src/domain/muscle-groups.ts` and is shared by the personal-bests table and the workout form's dropdown, so both list groups in the declared order and file a deleted exercise under the same trailing key. `muscleGroupLabel` sentence-cases at source because a browser styles an `<optgroup>` label itself and ignores `text-transform`.
+
+Numeric limits (max weight, max reps, RPE range) are centralized in `src/domain/constants.ts` and enforced in both the Zod schemas and the Mongoose schemas.

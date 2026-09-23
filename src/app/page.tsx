@@ -1,12 +1,10 @@
 import Link from "next/link";
 
-import { Card, ConnectionError, EmptyState, PageHeader, Stat } from "@/components/ui";
+import { ConnectionError, EmptyState, PageHeader } from "@/components/ui";
 import { PersonalBests } from "@/components/personal-bests";
-import { formatDate, formatVolume } from "@/domain/format";
 import { groupBestsByMuscle } from "@/domain/exercise-bests";
-import { personalBests, workoutVolume } from "@/domain/metrics";
+import { personalBests } from "@/domain/metrics";
 import { ownScope } from "@/domain/scope";
-import { weekOverWeek, weeklyTotals } from "@/domain/week";
 import { requireViewer } from "@/server/auth/dal";
 import { listExercises } from "@/server/repositories/exercises";
 import { listWorkouts } from "@/server/repositories/workouts";
@@ -19,7 +17,7 @@ export default async function DashboardPage() {
   if (viewer.status === "unavailable") {
     return (
       <>
-        <PageHeader title="Dashboard" />
+        <PageHeader title="Personal bests" />
         <ConnectionError message="Could not reach the database." />
       </>
     );
@@ -30,10 +28,11 @@ export default async function DashboardPage() {
   let workouts: Workout[];
   let exercises: Exercise[];
   try {
-    // Always the viewer's own, admin or not: the stats and personal bests here
-    // are "your training", and mixing accounts into them would be meaningless.
-    // The cross-account view an admin gets lives on /workouts
-    // The library supplies the muscle group and brand that workouts do not store
+    // Always the viewer's own, admin or not: these are "your bests", and mixing
+    // accounts into them would be meaningless. The cross-account view an admin
+    // gets lives on /workouts.
+    // The library supplies the muscle group, brand and equipment that workouts
+    // do not store
     [workouts, exercises] = await Promise.all([
       listWorkouts(ownScope(user.id)),
       listExercises(),
@@ -41,91 +40,36 @@ export default async function DashboardPage() {
   } catch {
     return (
       <>
-        <PageHeader title="Dashboard" />
+        <PageHeader title="Personal bests" />
         <ConnectionError message="Could not reach the database." />
       </>
     );
   }
 
   const groups = groupBestsByMuscle(personalBests(workouts), exercises);
-  // Rendered at request time, so "this week" moves with the calendar
-  const { current, previous } = weeklyTotals(workouts);
 
   return (
     <>
       <PageHeader
-        title={`Welcome back, ${user.name}`}
-        description="Your training at a glance"
+        title="Personal bests"
+        description="Your best working set per exercise, with the next target to beat it — the same reps, at the next load up"
         action={
           <Link
             href="/workouts/new"
-            className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-neutral-700 dark:bg-neutral-50 dark:text-neutral-950 dark:hover:bg-neutral-300"
+            className="shrink-0 rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-neutral-700 dark:bg-neutral-50 dark:text-neutral-950 dark:hover:bg-neutral-300"
           >
             Log workout
           </Link>
         }
       />
 
-      {workouts.length === 0 ? (
+      {groups.length === 0 ? (
         <EmptyState
-          title="No workouts yet"
-          hint="Log your first session to start tracking volume and personal bests."
+          title="No personal bests yet"
+          hint="Log a session with at least one working set to start tracking bests."
         />
       ) : (
-        <div className="space-y-8">
-          <section className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <Stat
-              label="Workouts this week"
-              value={String(current.workoutCount)}
-              trend={weekOverWeek(current.workoutCount, previous.workoutCount)}
-            />
-            <Stat
-              label="Volume this week"
-              value={formatVolume(current.volume)}
-              trend={weekOverWeek(current.volume, previous.volume)}
-            />
-            <Stat
-              label="Exercises this week"
-              value={String(current.exerciseCount)}
-              trend={weekOverWeek(current.exerciseCount, previous.exerciseCount)}
-            />
-          </section>
-
-          <section>
-            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-neutral-500 dark:text-neutral-400">
-              Recent workouts
-            </h2>
-            <ul className="space-y-2">
-              {workouts.slice(0, 5).map((workout) => (
-                <li key={workout.id}>
-                  <Link href={`/workouts/${workout.id}`} className="block">
-                    <Card>
-                      <div className="flex items-baseline justify-between gap-4">
-                        <span className="font-medium">{workout.title}</span>
-                        <span className="text-sm text-neutral-500 dark:text-neutral-400">
-                          {formatDate(workout.performedAt)}
-                        </span>
-                      </div>
-                      <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
-                        {workout.entries.length} exercises ·{" "}
-                        {formatVolume(workoutVolume(workout))} volume
-                      </p>
-                    </Card>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </section>
-
-          {groups.length > 0 ? (
-            <section>
-              <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-neutral-500 dark:text-neutral-400">
-                Personal bests
-              </h2>
-              <PersonalBests groups={groups} />
-            </section>
-          ) : null}
-        </div>
+        <PersonalBests groups={groups} />
       )}
     </>
   );

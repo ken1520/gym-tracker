@@ -114,15 +114,15 @@ It only touches workouts that still have no owner, so it is safe to re-run.
 
 ## ✨ Features
 
-Three tabs in the top nav — Dashboard, History, Exercises.
+Three tabs in the top nav — Personal bests, History, Exercises.
 
-### 📊 Dashboard — training at a glance
+### 🏆 Personal bests — what to beat next
 
 |     |                                                                                                      |
 | :-: | :--------------------------------------------------------------------------------------------------- |
-| 📈  | Workouts, volume and distinct exercises **this week**, each with the % change against last week        |
-| 🕘  | The five most recent sessions, with exercise count and volume                                          |
-| 🏆  | A personal best per exercise — the heaviest set ever logged, and the estimated 1RM behind it            |
+| 🥇  | A personal best per exercise — the strongest working set ever logged, and the Epley estimated 1RM behind it |
+| 🎯  | A **next target** per exercise from progressive overload — the same reps as the best set, at the next load up |
+| ⚙️  | The jump is ~2.5% rounded up to a notch the equipment has — 2.5 kg on a bar, 5 kg on a machine stack, 2 kg on dumbbells — so a target is always a weight you can load |
 | 💪  | Bests collapse into muscle groups; exercises deleted from the library keep their history in their own group |
 
 ### 📅 History — a month at a time
@@ -140,6 +140,7 @@ Three tabs in the top nav — Dashboard, History, Exercises.
 |     |                                                                                                    |
 | :-: | :-------------------------------------------------------------------------------------------------- |
 | ➕  | Any number of exercises, each with any number of sets — add and remove rows as you go                |
+| 🎯  | The exercise dropdown is grouped by target muscle, each option tagged with its brand or equipment     |
 | ⚖️  | Per set: weight in kg, reps, and a warmup checkbox                                                   |
 | 🔥  | **Warmup sets are excluded from every metric** — volume, set counts, best set and PRs                 |
 | 🥇  | Each exercise shows its best set of the session plus an Epley estimated 1RM                          |

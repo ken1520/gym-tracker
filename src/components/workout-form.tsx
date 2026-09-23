@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { useActionState, useState } from "react";
 
 import { useActionToast } from "@/components/use-action-toast";
-import { exerciseQualifier } from "@/domain/exercise-label";
+import { buildExerciseOptions, flattenOptions } from "@/domain/exercise-options";
+import { muscleGroupLabel } from "@/domain/muscle-groups";
 import { createWorkoutAction, updateWorkoutAction } from "@/server/actions/workouts";
 import { initialActionState } from "@/server/actions/state";
 import { toDateInputValue } from "@/domain/format";
@@ -24,9 +25,6 @@ type SetRow = {
   rpe?: string;
 };
 type EntryRow = { key: string; exerciseId: string; sets: SetRow[] };
-// label is what the dropdown shows; name is what gets stored, and the two differ
-// for a deleted exercise so the marker never writes itself into the record
-type ExerciseOption = { id: string; name: string; label: string };
 
 let rowCounter = 0;
 const nextKey = () => `row-${rowCounter++}`;
@@ -37,38 +35,6 @@ const emptyEntry = (exerciseId: string): EntryRow => ({
   exerciseId,
   sets: [emptySet()],
 });
-
-// An edited workout can reference an exercise that has since been deleted.
-// exerciseName is denormalized for exactly that case, so the option list keeps
-// those ids selectable instead of silently rewriting the entry.
-//
-// Every option carries its machine brand or equipment, so picking a lift never
-// depends on remembering which "Chest Press" is which. A deleted exercise has
-// neither left to show and keeps its own marker instead
-function buildOptions(exercises: Exercise[], workout?: Workout): ExerciseOption[] {
-  const options = new Map<string, ExerciseOption>(
-    exercises.map((exercise) => [
-      exercise.id,
-      {
-        id: exercise.id,
-        name: exercise.name,
-        label: `${exercise.name} (${exerciseQualifier(exercise)})`,
-      },
-    ]),
-  );
-
-  for (const entry of workout?.entries ?? []) {
-    if (!options.has(entry.exerciseId)) {
-      options.set(entry.exerciseId, {
-        id: entry.exerciseId,
-        name: entry.exerciseName,
-        label: `${entry.exerciseName} (removed)`,
-      });
-    }
-  }
-
-  return [...options.values()];
-}
 
 function toRows(workout: Workout): EntryRow[] {
   return workout.entries.map((entry) => ({
@@ -92,7 +58,9 @@ export function WorkoutForm({
   workout?: Workout;
 }) {
   const router = useRouter();
-  const options = buildOptions(exercises, workout);
+  // Grouped for the dropdown, flattened for the lookups that only need an id
+  const optionGroups = buildExerciseOptions(exercises, workout?.entries);
+  const options = flattenOptions(optionGroups);
   const [state, action, pending] = useActionState(
     workout ? updateWorkoutAction : createWorkoutAction,
     initialActionState,
@@ -225,10 +193,14 @@ export function WorkoutForm({
                   onChange={(event) => updateEntry(entry.key, event.target.value)}
                   className={inputClass}
                 >
-                  {options.map((option) => (
-                    <option key={option.id} value={option.id}>
-                      {option.label}
-                    </option>
+                  {optionGroups.map((group) => (
+                    <optgroup key={group.key} label={muscleGroupLabel(group.key)}>
+                      {group.options.map((option) => (
+                        <option key={option.id} value={option.id}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </optgroup>
                   ))}
                 </select>
                 <button

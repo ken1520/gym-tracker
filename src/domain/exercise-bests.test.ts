@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { UNGROUPED, groupBestsByMuscle } from "@/domain/exercise-bests";
+import { groupBestsByMuscle } from "@/domain/exercise-bests";
+import { UNGROUPED } from "@/domain/muscle-groups";
 import type { PersonalBest } from "@/domain/metrics";
 import type { Exercise } from "@/domain/types";
 
@@ -142,5 +143,21 @@ describe("groupBestsByMuscle", () => {
 
   it("returns nothing when no workouts have been logged", () => {
     expect(groupBestsByMuscle(new Map(), [exercise("a", "Bench Press")])).toEqual([]);
+  });
+
+  it("carries a next target worked out from the exercise's own equipment", () => {
+    const groups = groupBestsByMuscle(
+      new Map([["a", best("Chest Press", 100)]]),
+      [exercise("a", "Chest Press", { equipment: "machine" })],
+    );
+
+    // The best set is 100 kg x 5, and a 5 kg stack goes to 105 at the same reps
+    expect(groups[0].bests[0].next).toEqual({ weightKg: 105, reps: 5 });
+  });
+
+  it("still projects a target for a best whose exercise was deleted", () => {
+    const groups = groupBestsByMuscle(new Map([["gone", best("Dips", 90)]]), []);
+
+    expect(groups[0].bests[0].next).toEqual({ weightKg: 102.5, reps: 5 });
   });
 });

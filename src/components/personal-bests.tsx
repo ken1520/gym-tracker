@@ -1,10 +1,6 @@
 import { formatSet, formatWeight } from "@/domain/format";
-import { UNGROUPED } from "@/domain/exercise-bests";
-import type { BestsGroup, BestsGroupKey } from "@/domain/exercise-bests";
-
-function groupLabel(key: BestsGroupKey): string {
-  return key === UNGROUPED ? "no longer in the library" : key;
-}
+import { muscleGroupLabel } from "@/domain/muscle-groups";
+import type { BestsGroup } from "@/domain/exercise-bests";
 
 // Groups collapse with <details>, which keeps this page free of client JS the
 // same way /workouts keeps its state in the URL
@@ -14,7 +10,7 @@ export function PersonalBests({ groups }: { groups: BestsGroup[] }) {
       {groups.map((group) => (
         <details
           key={group.key}
-          open
+          open={false}
           className="group rounded-lg border border-neutral-200 dark:border-neutral-800"
         >
           <summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-3 text-sm font-medium [&::-webkit-details-marker]:hidden">
@@ -25,7 +21,7 @@ export function PersonalBests({ groups }: { groups: BestsGroup[] }) {
             >
               <path d="M0 0l8 4-8 4z" />
             </svg>
-            <span className="first-letter:uppercase">{groupLabel(group.key)}</span>
+            <span>{muscleGroupLabel(group.key)}</span>
             <span className="ml-auto text-xs tabular-nums text-neutral-500 dark:text-neutral-400">
               {group.bests.length}
             </span>
@@ -43,6 +39,9 @@ export function PersonalBests({ groups }: { groups: BestsGroup[] }) {
                   </th>
                   <th scope="col" className="py-2 pl-3 text-right font-medium">
                     Est. 1RM
+                  </th>
+                  <th scope="col" className="py-2 pl-3 text-right font-medium">
+                    Next target
                   </th>
                 </tr>
               </thead>
@@ -63,8 +62,16 @@ export function PersonalBests({ groups }: { groups: BestsGroup[] }) {
                     <td className="whitespace-nowrap py-2 pl-3 text-right tabular-nums">
                       {formatSet(best.set.weightKg, best.set.reps)}
                     </td>
-                    <td className="whitespace-nowrap py-2 pl-3 text-right font-medium tabular-nums">
+                    <td className="whitespace-nowrap py-2 pl-3 text-right tabular-nums">
                       {formatWeight(best.oneRepMax)}
+                    </td>
+                    <td className="whitespace-nowrap py-2 pl-3 text-right tabular-nums">
+                      <span className="font-medium text-green-700 dark:text-green-500">
+                        {formatSet(best.next.weightKg, best.next.reps)}
+                      </span>
+                      <span className="ml-2 text-xs text-neutral-500 dark:text-neutral-400">
+                        {`+${formatWeight(best.next.weightKg - best.set.weightKg)}`}
+                      </span>
                     </td>
                   </tr>
                 ))}
