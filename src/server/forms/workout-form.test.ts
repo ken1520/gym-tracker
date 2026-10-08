@@ -16,7 +16,8 @@ describe("parseWorkoutForm", () => {
   it("rebuilds nested entries from flat indexed field names", () => {
     const parsed = parseWorkoutForm(
       formFrom([
-        ["title", "Push day"],
+        ["muscleGroups", "chest"],
+        ["muscleGroups", "triceps"],
         ["performedAt", "2026-08-10"],
         ["entries.0.exerciseId", OBJECT_ID],
         ["entries.0.exerciseName", "Bench Press"],
@@ -27,7 +28,7 @@ describe("parseWorkoutForm", () => {
       ]),
     );
 
-    expect(parsed.title).toBe("Push day");
+    expect(parsed.muscleGroups).toEqual(["chest", "triceps"]);
     expect(parsed.entries).toHaveLength(1);
     expect(parsed.entries[0].sets).toHaveLength(2);
     expect(parsed.entries[0].sets[1]).toEqual({
@@ -97,7 +98,7 @@ describe("parseWorkoutForm feeding workoutInputSchema", () => {
     const result = workoutInputSchema.safeParse(
       parseWorkoutForm(
         formFrom([
-          ["title", "Push day"],
+          ["muscleGroups", "chest"],
           ["performedAt", "2026-08-10"],
           ["entries.0.exerciseId", OBJECT_ID],
           ["entries.0.exerciseName", "Bench Press"],
@@ -110,6 +111,7 @@ describe("parseWorkoutForm feeding workoutInputSchema", () => {
     expect(result.success).toBe(true);
     if (!result.success) return;
     expect(result.data.entries[0].sets[0].weightKg).toBe(80.5);
+    expect(result.data.title).toBe("Chest");
     expect(result.data.performedAt).toBeInstanceOf(Date);
   });
 

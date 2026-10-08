@@ -1,6 +1,6 @@
 import mongoose, { Schema, type InferSchemaType, type Model } from "mongoose";
 
-import { LIMITS } from "@/domain/constants";
+import { LIMITS, MUSCLE_GROUPS } from "@/domain/constants";
 
 const setSchema = new Schema(
   {
@@ -28,7 +28,9 @@ const workoutSchema = new Schema(
     // that would be invisible to every scoped query can never be written
     userId: { type: Schema.Types.ObjectId, ref: "User", required: true },
     performedAt: { type: Date, required: true },
+    // Derived from muscleGroups on every save; older workouts keep a free-text one
     title: { type: String, required: true, trim: true, maxlength: 120 },
+    muscleGroups: { type: [{ type: String, enum: MUSCLE_GROUPS }], default: undefined },
     notes: { type: String, trim: true, maxlength: 2000 },
     entries: { type: [entrySchema], required: true },
   },

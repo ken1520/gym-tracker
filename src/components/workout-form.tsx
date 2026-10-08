@@ -4,13 +4,18 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useActionState, useState } from "react";
 
+import { MuscleGroupPicker } from "@/components/muscle-group-picker";
+import { useToast } from "@/components/toast";
 import { useActionToast } from "@/components/use-action-toast";
 import { buildExerciseOptions, flattenOptions } from "@/domain/exercise-options";
+import { entriesToCopy, muscleGroupsOf } from "@/domain/last-session";
+import type { LastSessions } from "@/domain/last-session";
 import { muscleGroupLabel } from "@/domain/muscle-groups";
 import { createWorkoutAction, updateWorkoutAction } from "@/server/actions/workouts";
 import { initialActionState } from "@/server/actions/state";
 import { toDateInputValue } from "@/domain/format";
-import type { Exercise, Workout } from "@/domain/types";
+import type { MuscleGroup } from "@/domain/constants";
+import type { Exercise, Workout, WorkoutEntry } from "@/domain/types";
 
 const inputClass =
   "w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm outline-none focus:border-neutral-900 dark:border-neutral-700 dark:bg-neutral-950 dark:focus:border-neutral-100";
@@ -36,8 +41,9 @@ const emptyEntry = (exerciseId: string): EntryRow => ({
   sets: [emptySet()],
 });
 
-function toRows(workout: Workout): EntryRow[] {
-  return workout.entries.map((entry) => ({
+// Map entries to form rows; a copy drops rpe since no field would show it
+function toRows(entries: readonly WorkoutEntry[], { carryRpe }: { carryRpe: boolean }): EntryRow[] {
+  return entries.map((entry) => ({
     key: nextKey(),
     exerciseId: entry.exerciseId,
     sets: entry.sets.map((set) => ({
@@ -45,19 +51,27 @@ function toRows(workout: Workout): EntryRow[] {
       weightKg: String(set.weightKg),
       reps: String(set.reps),
       isWarmup: set.isWarmup,
-      ...(set.rpe === undefined ? {} : { rpe: String(set.rpe) }),
+      ...(carryRpe && set.rpe !== undefined ? { rpe: String(set.rpe) } : {}),
     })),
   }));
 }
 
+// Spot a row nothing has been typed into yet
+const isUntouched = (entry: EntryRow) =>
+  entry.sets.every((set) => set.weightKg === "" && set.reps === "");
+
 export function WorkoutForm({
   exercises,
   workout,
+  lastSessions,
 }: {
   exercises: Exercise[];
   workout?: Workout;
+  // Only the new-workout form offers copying
+  lastSessions?: LastSessions;
 }) {
   const router = useRouter();
+  const { showToast } = useToast();
   // Grouped for the dropdown, flattened for the lookups that only need an id
   const optionGroups = buildExerciseOptions(exercises, workout?.entries);
   const options = flattenOptions(optionGroups);
@@ -73,9 +87,33 @@ export function WorkoutForm({
   });
 
   const [entries, setEntries] = useState<EntryRow[]>(() => {
-    if (workout) return toRows(workout);
+    if (workout) return toRows(workout.entries, { carryRpe: true });
     return options.length > 0 ? [emptyEntry(options[0].id)] : [];
   });
+
+  // Derive groups from the entries when the workout has none stored
+  const [muscleGroups, setMuscleGroups] = useState<MuscleGroup[]>(
+    () => workout?.muscleGroups ?? muscleGroupsOf(workout?.entries ?? [], exercises),
+  );
+
+  const copyFromLastWorkout = () => {
+    if (!lastSessions) return;
+
+    // Replace untouched rows and skip exercises already in the form
+    const kept = entries.filter((entry) => !isUntouched(entry));
+    const present = new Set(kept.map((entry) => entry.exerciseId));
+    const copied = entriesToCopy(lastSessions, muscleGroups).filter(
+      (entry) => !present.has(entry.exerciseId),
+    );
+
+    if (copied.length === 0) {
+      showToast("Nothing new to copy for these muscle groups", "error");
+      return;
+    }
+
+    setEntries([...kept, ...toRows(copied, { carryRpe: false })]);
+    showToast(`Copied ${copied.length} exercise${copied.length === 1 ? "" : "s"}`);
+  };
 
   const addEntry = () => {
     if (options.length === 0) return;
@@ -135,21 +173,11 @@ export function WorkoutForm({
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <div className="sm:col-span-2">
-          <label htmlFor="title" className="mb-1 block text-xs font-medium">
-            Title
-          </label>
-          <input
-            id="title"
-            name="title"
-            required
-            defaultValue={workout?.title ?? "Training session"}
-            className={inputClass}
+          <MuscleGroupPicker
+            selected={muscleGroups}
+            onChange={setMuscleGroups}
+            error={state.fieldErrors?.muscleGroups}
           />
-          {state.fieldErrors?.title ? (
-            <p className="mt-1 text-xs text-red-600 dark:text-red-400">
-              {state.fieldErrors.title}
-            </p>
-          ) : null}
         </div>
         <div>
           <label htmlFor="performedAt" className="mb-1 block text-xs font-medium">
@@ -290,9 +318,20 @@ export function WorkoutForm({
         >
           Add exercise
         </button>
+        {lastSessions ? (
+          <button
+            type="button"
+            onClick={copyFromLastWorkout}
+            disabled={muscleGroups.length === 0}
+            title={muscleGroups.length === 0 ? "Select a target muscle group first" : undefined}
+            className="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium transition-colors hover:bg-neutral-100 disabled:opacity-50 dark:border-neutral-700 dark:hover:bg-neutral-900"
+          >
+            Copy exercises from last workout
+          </button>
+        ) : null}
         <button
           type="submit"
-          disabled={pending || entries.length === 0}
+          disabled={pending || entries.length === 0 || muscleGroups.length === 0}
           className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-neutral-700 disabled:opacity-50 dark:bg-neutral-50 dark:text-neutral-950 dark:hover:bg-neutral-300"
         >
           {pending ? "Saving…" : workout ? "Save changes" : "Save workout"}

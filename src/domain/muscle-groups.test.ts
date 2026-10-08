@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { UNGROUPED, groupByMuscle, muscleGroupLabel } from "@/domain/muscle-groups";
+import { UNGROUPED, groupByMuscle, muscleGroupLabel, workoutTitle } from "@/domain/muscle-groups";
 
 describe("groupByMuscle", () => {
   it("collects rows under their group in the declared order", () => {
@@ -36,5 +36,12 @@ describe("muscleGroupLabel", () => {
     expect(muscleGroupLabel(UNGROUPED)).toBe("No longer in the library");
     expect(muscleGroupLabel("chest")).toBe("Chest");
     expect(muscleGroupLabel("full-body")).toBe("Full-body");
+  });
+});
+
+describe("workoutTitle", () => {
+  it("joins sentence-cased groups in declared order", () => {
+    expect(workoutTitle(["triceps", "chest"])).toBe("Chest, Triceps");
+    expect(workoutTitle(["full-body"])).toBe("Full-body");
   });
 });

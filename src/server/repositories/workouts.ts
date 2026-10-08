@@ -6,6 +6,7 @@ import { Types } from "mongoose";
 import { connectToDatabase } from "@/lib/mongoose";
 import { WorkoutModel } from "@/models/workout";
 import { toUpdateDoc } from "@/server/repositories/update-doc";
+import type { MuscleGroup } from "@/domain/constants";
 import type { Workout } from "@/domain/types";
 import type { WorkoutInput } from "@/domain/schemas";
 import type { WorkoutScope } from "@/domain/scope";
@@ -16,6 +17,7 @@ type LeanWorkout = {
   userId: unknown;
   performedAt: Date;
   title: string;
+  muscleGroups?: string[] | null;
   notes?: string | null;
   entries: {
     exerciseId: unknown;
@@ -35,6 +37,8 @@ function toWorkout(doc: LeanWorkout): Workout {
     userId: String(doc.userId),
     performedAt: doc.performedAt.toISOString(),
     title: doc.title,
+    // The schema enum guarantees the values, so the cast only narrows the type
+    ...(doc.muscleGroups?.length ? { muscleGroups: doc.muscleGroups as MuscleGroup[] } : {}),
     ...(doc.notes ? { notes: doc.notes } : {}),
     entries: doc.entries.map((entry) => ({
       exerciseId: String(entry.exerciseId),

@@ -23,6 +23,8 @@ export type Workout = {
   userId: string;
   performedAt: string;
   title: string;
+  // Absent on workouts logged before titles became muscle groups
+  muscleGroups?: MuscleGroup[];
   notes?: string;
   entries: WorkoutEntry[];
 };

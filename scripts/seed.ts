@@ -88,7 +88,8 @@ async function seed(): Promise<void> {
   await WorkoutModel.create({
     userId: admin._id,
     performedAt: new Date(),
-    title: "Lower + Push",
+    title: "Chest, Legs",
+    muscleGroups: ["chest", "legs"],
     notes: "Felt strong, bar speed good on the last set",
     entries: [
       {

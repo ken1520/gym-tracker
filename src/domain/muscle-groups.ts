@@ -42,3 +42,10 @@ export function groupByMuscle<Row>(
     return rows ? [{ key, rows }] : [];
   });
 }
+
+// Build a workout title from its muscle groups, in declared order
+export function workoutTitle(groups: readonly MuscleGroup[]): string {
+  return MUSCLE_GROUPS.filter((group) => groups.includes(group))
+    .map(muscleGroupLabel)
+    .join(", ");
+}

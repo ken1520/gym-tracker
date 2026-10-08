@@ -168,7 +168,7 @@ describe("workoutInputSchema", () => {
   it("rejects an exerciseId that is not an ObjectId", () => {
     const result = workoutInputSchema.safeParse({
       performedAt: "2026-08-10",
-      title: "Push",
+      muscleGroups: ["chest"],
       entries: [
         { exerciseId: "not-an-id", exerciseName: "Bench", sets: [{ weightKg: 80, reps: 5 }] },
       ],
@@ -179,8 +179,33 @@ describe("workoutInputSchema", () => {
   it("rejects an entry with no sets", () => {
     const result = workoutInputSchema.safeParse({
       performedAt: "2026-08-10",
-      title: "Push",
+      muscleGroups: ["chest"],
       entries: [{ exerciseId: OBJECT_ID, exerciseName: "Bench", sets: [] }],
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("derives the title from the muscle groups, deduped and in declared order", () => {
+    const parsed = workoutInputSchema.parse({
+      performedAt: "2026-08-10",
+      muscleGroups: ["triceps", "chest", "triceps"],
+      title: "Ignored",
+      entries: [
+        { exerciseId: OBJECT_ID, exerciseName: "Bench", sets: [{ weightKg: 80, reps: 5 }] },
+      ],
+    });
+
+    expect(parsed.muscleGroups).toEqual(["chest", "triceps"]);
+    expect(parsed.title).toBe("Chest, Triceps");
+  });
+
+  it("rejects an unknown muscle group", () => {
+    const result = workoutInputSchema.safeParse({
+      performedAt: "2026-08-10",
+      muscleGroups: ["neck"],
+      entries: [
+        { exerciseId: OBJECT_ID, exerciseName: "Bench", sets: [{ weightKg: 80, reps: 5 }] },
+      ],
     });
     expect(result.success).toBe(false);
   });
@@ -190,7 +215,7 @@ describe("toFieldErrors", () => {
   it("maps dotted paths to the first message for each field", () => {
     const result = workoutInputSchema.safeParse({
       performedAt: "2026-08-10",
-      title: "",
+      muscleGroups: [],
       entries: [],
     });
 
@@ -198,7 +223,7 @@ describe("toFieldErrors", () => {
     if (result.success) return;
 
     const errors = toFieldErrors(result.error);
-    expect(errors.title).toBeDefined();
+    expect(errors.muscleGroups).toBeDefined();
     expect(errors.entries).toBeDefined();
   });
 

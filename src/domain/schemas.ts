@@ -9,6 +9,7 @@ import {
   MACHINE_BRANDS,
   MUSCLE_GROUPS,
 } from "@/domain/constants";
+import { workoutTitle } from "@/domain/muscle-groups";
 
 const objectId = z
   .string()
@@ -30,15 +31,22 @@ export const entryInputSchema = z.object({
   sets: z.array(setInputSchema).min(1, "Add at least one set").max(LIMITS.maxSetsPerEntry),
 });
 
-export const workoutInputSchema = z.object({
-  performedAt: z.coerce.date(),
-  title: z.string().trim().min(1, "Title is required").max(120),
-  notes: z.string().trim().max(2000).optional(),
-  entries: z
-    .array(entryInputSchema)
-    .min(1, "Log at least one exercise")
-    .max(LIMITS.maxEntriesPerWorkout),
-});
+// Derive the title from the muscle groups rather than from input
+export const workoutInputSchema = z
+  .object({
+    performedAt: z.coerce.date(),
+    muscleGroups: z
+      .array(z.enum(MUSCLE_GROUPS))
+      .min(1, "Pick at least one muscle group")
+      // Dedupe and sort into declared order
+      .transform((groups) => MUSCLE_GROUPS.filter((group) => groups.includes(group))),
+    notes: z.string().trim().max(2000).optional(),
+    entries: z
+      .array(entryInputSchema)
+      .min(1, "Log at least one exercise")
+      .max(LIMITS.maxEntriesPerWorkout),
+  })
+  .transform((workout) => ({ ...workout, title: workoutTitle(workout.muscleGroups) }));
 
 export const exerciseInputSchema = z.object({
   name: z

@@ -18,7 +18,7 @@ const SET_FIELD = /^entries\.(\d+)\.sets\.(\d+)\.(weightKg|reps|rpe|isWarmup)$/;
 
 export function parseWorkoutForm(formData: FormData): {
   performedAt: string;
-  title: string;
+  muscleGroups: string[];
   notes?: string;
   entries: RawEntry[];
 } {
@@ -67,7 +67,8 @@ export function parseWorkoutForm(formData: FormData): {
 
   return {
     performedAt: String(formData.get("performedAt") ?? ""),
-    title: String(formData.get("title") ?? "").trim(),
+    // Each checked group posts its own muscleGroups value
+    muscleGroups: formData.getAll("muscleGroups").map(String),
     ...(notes ? { notes } : {}),
     // Sparse indices are possible when a row is removed client-side
     entries: [...entries.entries()]
