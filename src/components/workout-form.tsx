@@ -7,6 +7,7 @@ import { useActionState, useState } from "react";
 import { MuscleGroupPicker } from "@/components/muscle-group-picker";
 import { useToast } from "@/components/toast";
 import { useActionToast } from "@/components/use-action-toast";
+import { useDragReorder } from "@/components/use-drag-reorder";
 import { buildExerciseOptions, flattenOptions } from "@/domain/exercise-options";
 import { entriesToCopy, muscleGroupsOf } from "@/domain/last-session";
 import type { LastSessions } from "@/domain/last-session";
@@ -90,6 +91,9 @@ export function WorkoutForm({
     if (workout) return toRows(workout.entries, { carryRpe: true });
     return options.length > 0 ? [emptyEntry(options[0].id)] : [];
   });
+
+  // Card order is entry order, which the indexed field names carry into the save
+  const { draggingKey, itemRef, handleProps } = useDragReorder(setEntries);
 
   // Derive groups from the entries when the workout has none stored
   const [muscleGroups, setMuscleGroups] = useState<MuscleGroup[]>(
@@ -201,7 +205,12 @@ export function WorkoutForm({
           return (
             <div
               key={entry.key}
-              className="rounded-lg border border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-950"
+              ref={itemRef(entry.key)}
+              className={`rounded-lg border bg-white p-4 transition-shadow dark:bg-neutral-950 ${
+                draggingKey === entry.key
+                  ? "border-neutral-900 shadow-lg dark:border-neutral-100"
+                  : "border-neutral-200 dark:border-neutral-800"
+              }`}
             >
               <input
                 type="hidden"
@@ -215,6 +224,18 @@ export function WorkoutForm({
               />
 
               <div className="mb-3 flex items-center gap-2">
+                <button
+                  type="button"
+                  data-drag-handle
+                  aria-label="Drag to reorder, or use the arrow keys"
+                  title="Drag to reorder"
+                  {...handleProps(entry.key)}
+                  className={`shrink-0 touch-none select-none rounded-md px-1 py-2 text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-neutral-700 dark:hover:bg-neutral-900 dark:hover:text-neutral-200 ${
+                    draggingKey === entry.key ? "cursor-grabbing" : "cursor-grab"
+                  }`}
+                >
+                  ⠿
+                </button>
                 <select
                   aria-label="Exercise"
                   value={entry.exerciseId}

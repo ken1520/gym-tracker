@@ -55,6 +55,23 @@ describe("parseWorkoutForm", () => {
     expect(parsed.entries[0].sets[1].isWarmup).toBe(false);
   });
 
+  it("orders entries by their index, so a drag-reordered form saves in the new order", () => {
+    const parsed = parseWorkoutForm(
+      formFrom([
+        ["entries.1.exerciseId", OBJECT_ID],
+        ["entries.1.exerciseName", "Squat"],
+        ["entries.1.sets.0.weightKg", "100"],
+        ["entries.1.sets.0.reps", "5"],
+        ["entries.0.exerciseId", OBJECT_ID],
+        ["entries.0.exerciseName", "Bench Press"],
+        ["entries.0.sets.0.weightKg", "80"],
+        ["entries.0.sets.0.reps", "5"],
+      ]),
+    );
+
+    expect(parsed.entries.map((entry) => entry.exerciseName)).toEqual(["Bench Press", "Squat"]);
+  });
+
   it("closes gaps left by client-side row removal", () => {
     const parsed = parseWorkoutForm(
       formFrom([
