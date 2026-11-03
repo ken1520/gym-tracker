@@ -12,6 +12,8 @@ import { buildExerciseOptions, flattenOptions } from "@/domain/exercise-options"
 import { entriesToCopy, muscleGroupsOf } from "@/domain/last-session";
 import type { LastSessions } from "@/domain/last-session";
 import { muscleGroupLabel } from "@/domain/muscle-groups";
+import { BLANK_PLAN } from "@/domain/set-plan";
+import type { PlannedSet, SetPlans } from "@/domain/set-plan";
 import { createWorkoutAction, updateWorkoutAction } from "@/server/actions/workouts";
 import { initialActionState } from "@/server/actions/state";
 import { toDateInputValue } from "@/domain/format";
@@ -30,16 +32,21 @@ type SetRow = {
   // Not editable here, but carried through so saving an edit cannot drop it
   rpe?: string;
 };
-type EntryRow = { key: string; exerciseId: string; sets: SetRow[] };
+// planned marks sets still exactly as prefilled, so picking another exercise may refill them
+type EntryRow = { key: string; exerciseId: string; sets: SetRow[]; planned: boolean };
 
 let rowCounter = 0;
 const nextKey = () => `row-${rowCounter++}`;
 
 const emptySet = (): SetRow => ({ key: nextKey(), weightKg: "", reps: "", isWarmup: false });
-const emptyEntry = (exerciseId: string): EntryRow => ({
+// A new card waits for an exercise before it has any sets to fill
+const emptyEntry = (): EntryRow => ({ key: nextKey(), exerciseId: "", sets: [], planned: false });
+
+const plannedRow = (set: PlannedSet): SetRow => ({
   key: nextKey(),
-  exerciseId,
-  sets: [emptySet()],
+  weightKg: set.weightKg === undefined ? "" : String(set.weightKg),
+  reps: set.reps === undefined ? "" : String(set.reps),
+  isWarmup: set.isWarmup,
 });
 
 // Map entries to form rows; a copy drops rpe since no field would show it
@@ -54,6 +61,7 @@ function toRows(entries: readonly WorkoutEntry[], { carryRpe }: { carryRpe: bool
       isWarmup: set.isWarmup,
       ...(carryRpe && set.rpe !== undefined ? { rpe: String(set.rpe) } : {}),
     })),
+    planned: false,
   }));
 }
 
@@ -65,11 +73,14 @@ export function WorkoutForm({
   exercises,
   workout,
   lastSessions,
+  setPlans,
 }: {
   exercises: Exercise[];
   workout?: Workout;
   // Only the new-workout form offers copying
   lastSessions?: LastSessions;
+  // Only the new-workout form prefills sets from history
+  setPlans?: SetPlans;
 }) {
   const router = useRouter();
   const { showToast } = useToast();
@@ -87,10 +98,13 @@ export function WorkoutForm({
     if (state.redirectTo) router.push(state.redirectTo);
   });
 
-  const [entries, setEntries] = useState<EntryRow[]>(() => {
-    if (workout) return toRows(workout.entries, { carryRpe: true });
-    return options.length > 0 ? [emptyEntry(options[0].id)] : [];
-  });
+  const [entries, setEntries] = useState<EntryRow[]>(() =>
+    workout ? toRows(workout.entries, { carryRpe: true }) : [],
+  );
+
+  // Fill a picked exercise's sets; the edit form starts with one empty set
+  const setsFor = (exerciseId: string): SetRow[] =>
+    setPlans ? (setPlans[exerciseId] ?? BLANK_PLAN).map(plannedRow) : [emptySet()];
 
   // Card order is entry order, which the indexed field names carry into the save
   const { draggingKey, itemRef, handleProps } = useDragReorder(setEntries);
@@ -121,21 +135,29 @@ export function WorkoutForm({
 
   const addEntry = () => {
     if (options.length === 0) return;
-    setEntries((current) => [...current, emptyEntry(options[0].id)]);
+    setEntries((current) => [...current, emptyEntry()]);
   };
 
   const removeEntry = (key: string) =>
     setEntries((current) => current.filter((entry) => entry.key !== key));
 
+  // Refill the sets unless the lifter has already typed their own
   const updateEntry = (key: string, exerciseId: string) =>
     setEntries((current) =>
-      current.map((entry) => (entry.key === key ? { ...entry, exerciseId } : entry)),
+      current.map((entry) => {
+        if (entry.key !== key) return entry;
+        return isUntouched(entry) || entry.planned
+          ? { ...entry, exerciseId, sets: setsFor(exerciseId), planned: true }
+          : { ...entry, exerciseId };
+      }),
     );
 
   const addSet = (entryKey: string) =>
     setEntries((current) =>
       current.map((entry) =>
-        entry.key === entryKey ? { ...entry, sets: [...entry.sets, emptySet()] } : entry,
+        entry.key === entryKey
+          ? { ...entry, sets: [...entry.sets, emptySet()], planned: false }
+          : entry,
       ),
     );
 
@@ -143,7 +165,7 @@ export function WorkoutForm({
     setEntries((current) =>
       current.map((entry) =>
         entry.key === entryKey
-          ? { ...entry, sets: entry.sets.filter((set) => set.key !== setKey) }
+          ? { ...entry, sets: entry.sets.filter((set) => set.key !== setKey), planned: false }
           : entry,
       ),
     );
@@ -155,6 +177,7 @@ export function WorkoutForm({
           ? {
               ...entry,
               sets: entry.sets.map((set) => (set.key === setKey ? { ...set, ...patch } : set)),
+              planned: false,
             }
           : entry,
       ),
@@ -240,8 +263,12 @@ export function WorkoutForm({
                   aria-label="Exercise"
                   value={entry.exerciseId}
                   onChange={(event) => updateEntry(entry.key, event.target.value)}
+                  required
                   className={inputClass}
                 >
+                  <option value="" disabled>
+                    Choose an exercise
+                  </option>
                   {optionGroups.map((group) => (
                     <optgroup key={group.key} label={muscleGroupLabel(group.key)}>
                       {group.options.map((option) => (
@@ -260,6 +287,12 @@ export function WorkoutForm({
                   Remove
                 </button>
               </div>
+
+              {entry.sets.length === 0 ? (
+                <p className="text-sm text-neutral-500 dark:text-neutral-400">
+                  Choose an exercise to fill in its sets.
+                </p>
+              ) : null}
 
               <ul className="space-y-2">
                 {entry.sets.map((set, setIndex) => (
@@ -322,7 +355,8 @@ export function WorkoutForm({
               <button
                 type="button"
                 onClick={() => addSet(entry.key)}
-                className="mt-3 text-sm text-neutral-600 underline-offset-4 hover:underline dark:text-neutral-400"
+                disabled={entry.exerciseId === ""}
+                className="mt-3 text-sm text-neutral-600 underline-offset-4 hover:underline disabled:opacity-50 dark:text-neutral-400"
               >
                 Add set
               </button>
