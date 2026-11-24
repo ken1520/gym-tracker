@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { buildExerciseOptions, flattenOptions } from "@/domain/exercise-options";
+import {
+  buildExerciseOptions,
+  flattenOptions,
+  optionsForMuscleGroups,
+} from "@/domain/exercise-options";
 import { UNGROUPED } from "@/domain/muscle-groups";
 import type { Exercise, WorkoutEntry } from "@/domain/types";
 
@@ -81,5 +85,39 @@ describe("buildExerciseOptions", () => {
 
   it("returns no groups for an empty library", () => {
     expect(buildExerciseOptions([])).toEqual([]);
+  });
+});
+
+describe("optionsForMuscleGroups", () => {
+  const groups = buildExerciseOptions(
+    [
+      exercise("a", "Bench Press"),
+      exercise("b", "Curl", { muscleGroup: "biceps" }),
+      exercise("c", "Squat", { muscleGroup: "legs" }),
+    ],
+    [entry("gone", "Dips")],
+  );
+
+  it("offers every group while no target is picked", () => {
+    expect(optionsForMuscleGroups(groups, [], "")).toEqual(groups);
+  });
+
+  it("keeps only the targeted groups", () => {
+    const filtered = optionsForMuscleGroups(groups, ["legs", "chest"], "");
+
+    expect(filtered.map((group) => group.key)).toEqual(["chest", "legs"]);
+  });
+
+  it("keeps a picked exercise outside the targets so the card still shows it", () => {
+    const filtered = optionsForMuscleGroups(groups, ["chest"], "b");
+
+    expect(filtered.map((group) => group.key)).toEqual(["chest", "biceps"]);
+    expect(filtered[1].options.map((option) => option.id)).toEqual(["b"]);
+  });
+
+  it("keeps a removed exercise the card already holds", () => {
+    const filtered = optionsForMuscleGroups(groups, ["chest"], "gone");
+
+    expect(filtered.map((group) => group.key)).toEqual(["chest", UNGROUPED]);
   });
 });

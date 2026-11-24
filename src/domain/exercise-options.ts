@@ -1,3 +1,4 @@
+import type { MuscleGroup } from "@/domain/constants";
 import { exerciseQualifier } from "@/domain/exercise-label";
 import { UNGROUPED, groupByMuscle } from "@/domain/muscle-groups";
 import type { MuscleGroupKey } from "@/domain/muscle-groups";
@@ -67,4 +68,22 @@ export function buildExerciseOptions(
 
 export function flattenOptions(groups: readonly ExerciseOptionGroup[]): ExerciseOption[] {
   return groups.flatMap((group) => group.options);
+}
+
+// Narrow the options to the target muscles, keeping the card's own pick
+export function optionsForMuscleGroups(
+  groups: readonly ExerciseOptionGroup[],
+  targets: readonly MuscleGroup[],
+  selectedId: string,
+): ExerciseOptionGroup[] {
+  if (targets.length === 0) return [...groups];
+
+  const targeted = new Set<MuscleGroupKey>(targets);
+  return groups
+    .map((group) =>
+      targeted.has(group.key)
+        ? group
+        : { ...group, options: group.options.filter((option) => option.id === selectedId) },
+    )
+    .filter((group) => group.options.length > 0);
 }

@@ -8,7 +8,11 @@ import { MuscleGroupPicker } from "@/components/muscle-group-picker";
 import { useToast } from "@/components/toast";
 import { useActionToast } from "@/components/use-action-toast";
 import { useDragReorder } from "@/components/use-drag-reorder";
-import { buildExerciseOptions, flattenOptions } from "@/domain/exercise-options";
+import {
+  buildExerciseOptions,
+  flattenOptions,
+  optionsForMuscleGroups,
+} from "@/domain/exercise-options";
 import { entriesToCopy, muscleGroupsOf } from "@/domain/last-session";
 import type { LastSessions } from "@/domain/last-session";
 import { muscleGroupLabel } from "@/domain/muscle-groups";
@@ -224,6 +228,7 @@ export function WorkoutForm({
       <div className="space-y-4">
         {entries.map((entry, entryIndex) => {
           const selected = options.find((option) => option.id === entry.exerciseId);
+          const cardGroups = optionsForMuscleGroups(optionGroups, muscleGroups, entry.exerciseId);
 
           return (
             <div
@@ -269,7 +274,7 @@ export function WorkoutForm({
                   <option value="" disabled>
                     Choose an exercise
                   </option>
-                  {optionGroups.map((group) => (
+                  {cardGroups.map((group) => (
                     <optgroup key={group.key} label={muscleGroupLabel(group.key)}>
                       {group.options.map((option) => (
                         <option key={option.id} value={option.id}>
